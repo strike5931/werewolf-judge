@@ -392,8 +392,9 @@ function nightSteps(){const c=S.cfg.roles,s=['close'];
   if(c.merchant)s.push('merchant');
   if(c.witch)s.push('witch');
   if(c.seer)s.push('seer');
-  if(c.hunter)s.push('hunter');
   if(c.merchant&&S.round>1)s.push('lucky');
+  /* 獵人永遠排最後：所有毒都下完了，才告訴他能不能開槍 */
+  if(c.hunter)s.push('hunter');
   if(S.round===1&&(c.idiot||c.knight))s.push('ident');
   s.push('dawn');return s}
 const IDENT={bros:['wolfbro','wolfyb'],guard:['guard'],wolf:['wolf','wolfking','whitewolf','beauty'],witch:['witch'],seer:['seer'],merchant:['merchant'],hunter:['hunter'],ident:['idiot','knight']};
@@ -413,8 +414,10 @@ const TESTS=[
    seats:SEATS_HEI,round:1,day:true,set(){S.traded=true;S.lucky={pid:3,item:'gun',r:1,used:false};tlog('黑市商人把獵槍交易給 3號（幸運兒）')}},
   {n:'獵人被毒不能開槍',d:'3號獵人同時持有交易來的獵槍（兩把槍）。停在第 2 夜的女巫：用毒藥毒 3號，往下到獵人那一步應顯示「不能開槍」；天亮後 3號出局，不應該跳出任何開槍卡。',
    seats:SEATS_HEI,round:2,at:'witch',set(){S.traded=true;S.lucky={pid:3,item:'gun',r:1,used:false};tlog('黑市商人把獵槍交易給 3號（幸運兒）')}},
-  {n:'幸運兒毒到獵人',d:'毒藥交易給了平民（9號）。停在第 2 夜的獵人：先顯示「可以開槍」；往下到幸運兒，用交易來的毒藥毒 3號，應跳出警告；天亮後 3號出局，不應該跳出開槍卡。',
-   seats:SEATS_HEI,round:2,at:'hunter',set(){S.traded=true;S.lucky={pid:9,item:'poison',r:1,used:false};tlog('黑市商人把毒藥交易給 9號（幸運兒）')}}
+  {n:'幸運兒毒到獵人',d:'毒藥交易給了平民（9號）。停在第 2 夜的幸運兒：用交易來的毒藥毒 3號，往下到獵人（排在最後）應顯示「不能開槍」；天亮後 3號出局，不應該跳出開槍卡。',
+   seats:SEATS_HEI,round:2,at:'lucky',set(){S.traded=true;S.lucky={pid:9,item:'poison',r:1,used:false};tlog('黑市商人把毒藥交易給 9號（幸運兒）')}},
+  {n:'狼兄死亡',d:'停在第 1 天：按「記錄放逐」放逐 7號狼兄。8號狼弟應該覺醒（頭像換成紅眼版）；進入第 2 夜到狼人那一步，翻出覺醒卡，並多一個狼弟的額外刀口。之後預言家查驗 8號應該是狼人。',
+   seats:SEATS_HEI,round:1,day:true}
 ];
 function tlog(t){S.log.push({r:1,ph:'night',t:'（測試情境）'+t})}
 function runTest(i){const T=TESTS[i],cfg=JSON.parse(JSON.stringify(S.cfg));
@@ -589,8 +592,7 @@ function vNight(){const steps=nightSteps(),i=Math.min(S.step,steps.length-1),st=
     else{h+='<p class="note">幸運兒是 '+L.pid+'號'+(lp.role==='seer'||lp.role==='witch'?'（'+ROLES[lp.role].n+'本人，剛才已用過自己的技能，這裡再單獨睜眼一次）':'')+'，持有'+ITEM[L.item]+'。</p>';
       if(L.item==='crystal'){h+=pick('lcheck',a.filter(p=>p.id!==L.pid),{sel:n.lcheck});
         if(n.lcheck!=null){const w=seenWolf(P(n.lcheck));h+='<div class="big '+(w?'evil':'good')+'">'+n.lcheck+'號是'+(w?'狼人':'好人')+'<small>手勢：'+(w?'拇指向下':'拇指向上')+'</small></div>'}}
-      else{h+=pick('lpoison',a.filter(p=>p.id!==L.pid),{sel:n.lpoison})+'<p class="note">未選＝今晚不用。</p>';
-        const hu=liveOf('hunter');if(hu&&n.lpoison===hu.id)h+='<p class="note w">被毒的是獵人，但他剛才已經看過「可以開槍」。天亮後他不能開槍，請依桌規處理（例如天亮前再單獨告知一次）。</p>'}}
+      else{h+=pick('lpoison',a.filter(p=>p.id!==L.pid),{sel:n.lpoison})+'<p class="note">未選＝今晚不用。</p>';}}
     h+='<p class="say">請閉眼。</p>'}
   else if(st==='ident'){h='<h2>確認其餘神職</h2><p class="say">'+['idiot','knight'].filter(r=>S.cfg.roles[r]).map(r=>ROLES[r].n+'請睜眼……請閉眼。').join('')+'</p>'+(idb||'<p class="note">已全部記錄。</p>')}
   else if(st==='dawn'){const li=[];
@@ -710,7 +712,7 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
       +'<li><b>白痴：</b>被放逐翻牌免死，之後不能投票但可發言；夜晚被刀、被毒照樣死。</li>'
       +'<li><b>騎士：</b>白天發言階段可翻牌決鬥一次。對方是狼則狼死並立刻入夜，否則騎士死。</li>'
       +'<li><b>狼兄弟：</b>第一夜先互認。狼弟覺醒前不跟狼人睜眼、被驗是好人；狼兄一出局狼弟就覺醒：當晚起跟狼人一起睜眼、被驗是狼人，並獲得額外一刀（預設整局一次、可保留）。兩刀同一人時解藥與守衛都救不了。狼兄不能自爆。</li>'
-      +'<li><b>黑市商人：</b>整局交易一次。交易到狼人（含未覺醒的狼弟）則交易失敗、商人出局。手勢 1 毒藥、2 獵槍、3 查驗。交易成立就在「天亮了……等一下」時輕拍幸運兒，單獨叫他睜眼確認技能。幸運兒隔天才能用技能；順序固定：狼人→商人→女巫→預言家→獵人→幸運兒，交易來的技能一律在幸運兒階段單獨睜眼使用（預言家拿到查驗、女巫拿到毒藥也一樣：先在自己那一步用完閉眼，幸運兒階段再睜眼用一次）。拿到獵槍的人在幸運兒階段睜眼看開槍手勢，晚上不能開；白天被放逐或被刀出局時當下開槍，被毒不能開。獵人拿到獵槍則有兩把槍。商人每晚都要叫，用過了就假裝詢問停頓 5 到 10 秒。</li>'
+      +'<li><b>黑市商人：</b>整局交易一次。交易到狼人（含未覺醒的狼弟）則交易失敗、商人出局。手勢 1 毒藥、2 獵槍、3 查驗。交易成立就在「天亮了……等一下」時輕拍幸運兒，單獨叫他睜眼確認技能。幸運兒隔天才能用技能；順序固定：狼人→商人→女巫→預言家→幸運兒→獵人（獵人永遠最後，所有毒都下完才告訴他能不能開槍），交易來的技能一律在幸運兒階段單獨睜眼使用（預言家拿到查驗、女巫拿到毒藥也一樣：先在自己那一步用完閉眼，幸運兒階段再睜眼用一次）。拿到獵槍的人在幸運兒階段睜眼看開槍手勢，晚上不能開；白天被放逐或被刀出局時當下開槍，被毒不能開。獵人拿到獵槍則有兩把槍。商人每晚都要叫，用過了就假裝詢問停頓 5 到 10 秒。</li>'
       +'<li><b>勝負：</b>每次有人出局後都檢查一次，工具會在達成條件時提示。</li>'
       +'<li><b>開局前先講清楚桌規：</b>自救、同守同救、屠邊或屠城、平票處理、是否可以貼臉／看牌發誓。</li>'
       +'</ul><button class="btn pri" data-a="close">關閉</button>'}
