@@ -33,6 +33,8 @@ ROLES = {
     "knight":    (GOD,  "A knight in plain plate armour raising a longsword in a duelling salute, moonlight on the blade."),
     "wolfbro":   (WOLF, "A tall, broad-shouldered dark-furred werewolf elder brother in a worn leather coat, a wolf-tooth pendant on his chest, one arm held out protectively."),
     "wolfyb":    (WOLF, "A young, slender werewolf with pale grey fur wearing an oversized hooded villager's cloak, half hiding his muzzle, wide innocent-looking eyes."),
+    # 覺醒後的狼弟。實際用的那張是以 art/wolfyb.png 為參考圖、走 /v1/images/edits 改畫的（角色才會一致）；這裡留文字版備用。
+    "wolfyb2":   (WOLF, "The same young, slender werewolf with pale grey fur in a tattered grey cloak and red scarf, now awakened and enraged: hood thrown back, jaws open in a furious snarl with fangs bared, fur bristling, eyes blazing with glowing crimson red light, one clawed hand raised."),
     "merchant":  (GOD,  "A shrewd travelling black-market merchant in a patched hooded cloak, holding one side of the coat open to reveal a small crystal orb, a poison vial and an old pistol hanging inside."),
     "villager":  (VIL,  "An ordinary villager in a wool cloak holding a lit candle lantern, looking wary, cottages behind."),
 }
