@@ -371,7 +371,9 @@ const TESTS=[
   {n:'獵人兩把槍',d:'獵槍交易給了獵人（3號）。停在第 1 天：按「記錄放逐」放逐 3號，應該跳出兩張開槍卡（獵人、幸運兒獵槍），可以各帶走一人。',
    seats:SEATS_HEI,round:1,day:true,set(){S.traded=true;S.lucky={pid:3,item:'gun',r:1,used:false};tlog('黑市商人把獵槍交易給 3號（幸運兒）')}},
   {n:'獵人被毒不能開槍',d:'3號獵人同時持有交易來的獵槍（兩把槍）。停在第 2 夜的女巫：用毒藥毒 3號，往下到獵人那一步應顯示「不能開槍」；天亮後 3號出局，不應該跳出任何開槍卡。',
-   seats:SEATS_HEI,round:2,at:'witch',set(){S.traded=true;S.lucky={pid:3,item:'gun',r:1,used:false};tlog('黑市商人把獵槍交易給 3號（幸運兒）')}}
+   seats:SEATS_HEI,round:2,at:'witch',set(){S.traded=true;S.lucky={pid:3,item:'gun',r:1,used:false};tlog('黑市商人把獵槍交易給 3號（幸運兒）')}},
+  {n:'幸運兒毒到獵人',d:'毒藥交易給了平民（9號）。停在第 2 夜的獵人：先顯示「可以開槍」；往下到幸運兒，用交易來的毒藥毒 3號，應跳出警告；天亮後 3號出局，不應該跳出開槍卡。',
+   seats:SEATS_HEI,round:2,at:'hunter',set(){S.traded=true;S.lucky={pid:9,item:'poison',r:1,used:false};tlog('黑市商人把毒藥交易給 9號（幸運兒）')}}
 ];
 function tlog(t){S.log.push({r:1,ph:'night',t:'（測試情境）'+t})}
 function runTest(i){const T=TESTS[i],cfg=JSON.parse(JSON.stringify(S.cfg));
