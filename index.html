@@ -248,6 +248,16 @@ const BOARDS=[
 ];
 const ITEM={poison:'毒藥',gun:'獵槍',crystal:'查驗'};
 const gesture=k=>Object.keys(ITEM).indexOf(k)+1;
+/* 幸運兒本身就是預言家（拿到查驗）或女巫（拿到毒藥）：在他自己那一步多用一次 */
+function luckyInOwn(){const L=S.lucky;if(!L)return false;const r=P(L.pid).role;return(L.item==='crystal'&&r==='seer')||(L.item==='poison'&&r==='witch')}
+function luckyOwn(role){const L=S.lucky,n=S.nt;if(!L||L.used||L.r>=S.round||!luckyInOwn())return'';
+  const lp=P(L.pid);if(!lp.alive||lp.role!==role)return'';
+  const others=alive().filter(p=>p.id!==L.pid);
+  if(role==='seer'){let h='<p class="say">你還有一次交易得到的查驗。要再查驗誰？</p>'+pick('lcheck',others,{sel:n.lcheck});
+    if(n.lcheck!=null){const w=seenWolf(P(n.lcheck));h+='<p class="say">他的身份是——</p><div class="big '+(w?'evil':'good')+'">'+n.lcheck+'號是'+(w?'狼人':'好人')+'<small>手勢：'+(w?'拇指向下':'拇指向上')+'</small></div>'}
+    return h+'<p class="note">預言家本身是幸運兒，今晚可以查驗兩次。未選＝今晚不用這次。</p>'}
+  return '<p class="say">你還有一瓶交易得到的毒藥。要用嗎？要毒誰？</p>'+pick('lpoison',others,{sel:n.lpoison})
+    +'<p class="note">女巫本身是幸運兒，這瓶和自己的毒藥分開算，今晚兩瓶都能用。未選＝今晚不用這瓶。</p>'}
 /* 狼弟的額外一刀現在能不能用 */
 function knifeOK(){const m=S.cfg.rules.ybKnife||'hold';if(!liveOf('wolfyb')||!S.yb)return false;
   return m==='every'||(!S.ybUsed&&(m==='hold'||S.round===S.ybFrom))}
@@ -490,11 +500,13 @@ function vNight(){const steps=nightSteps(),i=Math.min(S.step,steps.length-1),st=
       h+='<p class="say">'+(S.poison?'你有一瓶毒藥，要用嗎？要毒誰？':'（毒藥已用完，照樣詢問並停頓）')+'</p>';
       if(S.poison)h+=pick('poison',a.filter(p=>p.id!==w.id),{sel:n.poison})+'<p class="note">未選＝不用毒。'+(S.cfg.rules.two?'':'同一晚只能用一瓶藥。')+'</p>';
     }
+    if(w&&!idb)h+=luckyOwn('witch');
     h+='<p class="say">女巫請閉眼。</p>'}
   else if(st==='seer'){const s=liveOf('seer');h='<h2>預言家</h2><p class="say">預言家請睜眼。你今晚要查驗誰？</p>';
     if(idb)h+=idb;else if(!s)h+=gone('seer');
     else{h+=pick('check',a.filter(p=>p.id!==s.id),{sel:n.check});
       if(n.check!=null){const w=seenWolf(P(n.check));h+='<p class="say">他的身份是——</p><div class="big '+(w?'evil':'good')+'">'+n.check+'號是'+(w?'狼人':'好人')+'<small>手勢：'+(w?'拇指向下':'拇指向上')+'</small></div>'}}
+    if(s&&!idb)h+=luckyOwn('seer');
     h+='<p class="say">預言家請閉眼。</p>'}
   else if(st==='hunter'){const hu=liveOf('hunter');h='<h2>獵人</h2><p class="say">獵人請睜眼。你今晚的開槍狀態是——</p>';
     if(idb)h+=idb;else if(!hu)h+=gone('hunter');
@@ -511,9 +523,9 @@ function vNight(){const steps=nightSteps(),i=Math.min(S.step,steps.length-1),st=
         :'<p class="note">交易成立：'+n.tpid+'號成為幸運兒，獲得'+ITEM[n.titem]+'，'+(n.titem==='gun'?'明天白天起出局時可開槍':'明晚起可用')+'。天亮前會提醒你單獨叫他起來確認。</p>';
       else h+='<p class="note">技能和對象都選了才算交易；不選＝今晚不交易。整局只能交易一次。</p>'}
     h+='<p class="say">好的，我已確認。黑市商人請閉眼。</p>'}
-  else if(st==='lucky'){const L=S.lucky,lp=L&&P(L.pid),can=L&&lp.alive&&L.r<S.round&&!L.used&&L.item!=='gun';
+  else if(st==='lucky'){const L=S.lucky,lp=L&&P(L.pid),own=luckyInOwn(),can=L&&lp.alive&&L.r<S.round&&!L.used&&L.item!=='gun'&&!own;
     h='<h2>幸運兒</h2><p class="say">獲得黑市商人技能的玩家請睜眼。今晚是否要使用你的技能？請比出目標號碼。</p>';
-    if(!can)h+='<p class="note w">'+(L&&lp.alive&&L.item==='gun'&&!L.used?L.pid+'號持有獵槍，出局時才發動，今晚沒有動作。':'今晚沒有可行動的幸運兒。')+'照樣念台詞並停頓。</p>';
+    if(!can)h+='<p class="note w">'+(L&&lp.alive&&own?'幸運兒就是'+ROLES[lp.role].n+'本人，已在他自己睜眼的那一步處理。':L&&lp.alive&&L.item==='gun'&&!L.used?L.pid+'號持有獵槍，出局時才發動，今晚沒有動作。':'今晚沒有可行動的幸運兒。')+'照樣念台詞並停頓。</p>';
     else{h+='<p class="note">幸運兒是 '+L.pid+'號，持有'+ITEM[L.item]+'。</p>';
       if(L.item==='crystal'){h+=pick('lcheck',a.filter(p=>p.id!==L.pid),{sel:n.lcheck});
         if(n.lcheck!=null){const w=seenWolf(P(n.lcheck));h+='<div class="big '+(w?'evil':'good')+'">'+n.lcheck+'號是'+(w?'狼人':'好人')+'<small>手勢：'+(w?'拇指向下':'拇指向上')+'</small></div>'}}
@@ -627,7 +639,7 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
       +'<li><b>白痴：</b>被放逐翻牌免死，之後不能投票但可發言；夜晚被刀、被毒照樣死。</li>'
       +'<li><b>騎士：</b>白天發言階段可翻牌決鬥一次。對方是狼則狼死並立刻入夜，否則騎士死。</li>'
       +'<li><b>狼兄弟：</b>第一夜先互認。狼弟覺醒前不跟狼人睜眼、被驗是好人；狼兄一出局狼弟就覺醒：當晚起跟狼人一起睜眼、被驗是狼人，並獲得額外一刀（預設整局一次、可保留）。兩刀同一人時解藥與守衛都救不了。狼兄不能自爆。</li>'
-      +'<li><b>黑市商人：</b>整局交易一次。交易到狼人（含未覺醒的狼弟）則交易失敗、商人出局。手勢 1 毒藥、2 獵槍、3 查驗。交易成立就在「天亮了……等一下」時輕拍幸運兒，單獨叫他睜眼確認技能。幸運兒隔天才能用技能。商人每晚都要叫，用過了就假裝詢問停頓 5 到 10 秒。</li>'
+      +'<li><b>黑市商人：</b>整局交易一次。交易到狼人（含未覺醒的狼弟）則交易失敗、商人出局。手勢 1 毒藥、2 獵槍、3 查驗。交易成立就在「天亮了……等一下」時輕拍幸運兒，單獨叫他睜眼確認技能。幸運兒隔天才能用技能；幸運兒本身是預言家拿到查驗、或女巫拿到毒藥時，在他自己那一步多用一次（當晚驗兩次、毒兩瓶）。商人每晚都要叫，用過了就假裝詢問停頓 5 到 10 秒。</li>'
       +'<li><b>勝負：</b>每次有人出局後都檢查一次，工具會在達成條件時提示。</li>'
       +'<li><b>開局前先講清楚桌規：</b>自救、同守同救、屠邊或屠城、平票處理、是否可以貼臉／看牌發誓。</li>'
       +'</ul><button class="btn pri" data-a="close">關閉</button>'}
