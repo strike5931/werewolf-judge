@@ -368,6 +368,28 @@ function nightSteps(){const c=S.cfg.roles,s=['close'];
 const IDENT={bros:['wolfbro','wolfyb'],guard:['guard'],wolf:['wolf','wolfking','whitewolf','beauty'],witch:['witch'],seer:['seer'],merchant:['merchant'],hunter:['hunter'],ident:['idiot','knight']};
 function needIdent(step){const rs=IDENT[step]||[];return rs.find(r=>cnt(r)<S.cfg.roles[r])||null}
 
+/* ---------- 快速測試 ----------
+   每個案例把遊戲直接擺到要驗證的那一步，讓裁判實際按一次。
+   新增案例：在 TESTS 加一筆 {n:名稱, d:說明, seats:[1號到N號的角色], at:要停在哪個夜晚步驟, round:第幾夜, set(){ 調整狀態 }}。
+   seats 用 ROLES 的代號；set() 在座位排好、進入該夜之前執行，可設定幸運兒、誰已出局等。 */
+const SEATS_HEI=['seer','witch','hunter','merchant','wolf','wolf','wolfbro','wolfyb','villager','villager','villager','villager'];
+const TESTS=[
+  {n:'預言家雙查驗',d:'查驗交易給了預言家（1號）。停在第 2 夜的預言家：應該出現兩個選人盤，可以驗兩次；8號是未覺醒的狼弟，驗出來要是好人。',
+   seats:SEATS_HEI,round:2,at:'seer',set(){S.traded=true;S.lucky={pid:1,item:'crystal',r:1,used:false};tlog('黑市商人把查驗交易給 1號（幸運兒）')}},
+  {n:'女巫雙毒',d:'毒藥交易給了女巫（2號）。停在第 2 夜的女巫：應該有自己的毒藥和交易來的毒藥兩個選人盤，兩瓶各毒一人，天亮兩人都出局。',
+   seats:SEATS_HEI,round:2,at:'witch',set(){S.traded=true;S.lucky={pid:2,item:'poison',r:1,used:false};tlog('黑市商人把毒藥交易給 2號（幸運兒）')}}
+];
+function tlog(t){S.log.push({r:1,ph:'night',t:'（測試情境）'+t})}
+function runTest(i){const T=TESTS[i],cfg=JSON.parse(JSON.stringify(S.cfg));
+  const keep=S.test?S.back:JSON.stringify(Object.assign({},S,{sheet:null,pick:null,view:null}));
+  cfg.roles=blank();T.seats.forEach(r=>cfg.roles[r]++);cfg.n=T.seats.length;
+  S=fresh(cfg,[]);mkPlayers();S.players.forEach((p,k)=>p.role=T.seats[k]);
+  S.test=T.n;S.back=keep;S.sheriffDone=true;S.round=T.round||1;S.phase='night';
+  if(T.set)T.set();
+  startNt();S.step=Math.max(0,nightSteps().indexOf(T.at));
+  toast('已載入測試：'+T.n)}
+function endTest(){if(S.back){S=JSON.parse(S.back);toast('已回到原本的局')}}
+
 /* ---------- 畫面：共用 ---------- */
 function chip(p,o){o=o||{};const r=p.role?ROLES[p.role]:null,t=[];
   if(S.sheriff===p.id)t.push('<span class="tag sh">警</span>');
@@ -395,6 +417,7 @@ function board(o){return '<div class="board">'+S.players.map(p=>chip(p,o)).join(
 function pick(act,list,o){o=o||{};const ids=list.map(p=>p.id);
   return board({act:act,sel:o.sel,dis:p=>ids.indexOf(p.id)<0||(o.dis&&o.dis(p))})}
 function statLine(){const a=alive(),c=S.cfg.roles,x=[];
+  if(S.test)x.push('<b class="c-wolf">測試：'+esc(S.test)+'</b>');
   x.push('存活 <b>'+a.length+'</b>／'+S.players.length);
   if(!S.hide&&!S.players.some(p=>!p.role))x.push('<span class="c-wolf">狼 '+a.filter(isWolf).length+'</span> <span class="c-god">神 '+a.filter(p=>team(p)==='god').length+'</span> <span class="c-vil">民 '+a.filter(p=>team(p)==='vil').length+'</span>');
   if(c.witch)x.push('<span class="'+(S.antidote?'':'off')+'">解藥</span> <span class="'+(S.poison?'':'off')+'">毒藥</span>');
@@ -620,11 +643,14 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
       +'<label class="field">名字<input id="q-name" data-c="name" data-p="'+p.id+'" value="'+esc(p.name)+'" maxlength="12" autocomplete="off" placeholder="可留空"></label>'
       +'<div class="row"><button class="btn" data-a="setRole" data-p="'+p.id+':"'+(p.role?'':' disabled')+'>清除身份</button><button class="btn pri" data-a="close">完成</button></div>';
   }else if(s.type==='menu'){const g=S.phase==='night'||S.phase==='day';
-    h='<h2>選單</h2><button class="btn" data-a="open" data-p="log">本局紀錄</button><button class="btn" data-a="open" data-p="cheat">裁判小抄</button>'
-      +'<button class="btn" data-a="timer">發言計時器</button>'
+    h='<h2>選單</h2>'+(S.test?'<button class="btn pri" data-a="endTest">結束測試，回到原本的局</button>':'')+'<button class="btn" data-a="open" data-p="log">本局紀錄</button><button class="btn" data-a="open" data-p="cheat">裁判小抄</button>'
+      +'<button class="btn" data-a="timer">發言計時器</button><button class="btn" data-a="open" data-p="tests">快速測試</button>'
       +(g?'<button class="btn" data-a="end">結束遊戲，公布身份</button><button class="btn" data-a="again">重新開始（同配置、同座位）</button>':'')
       +(S.phase!=='setup'?'<button class="btn" data-a="toSetup">回到配置設定</button>':'')
       +'<p class="note">所有操作都能用「復原」退回，包含重新開始。</p><button class="btn pri" data-a="close">關閉</button>';
+  }else if(s.type==='tests'){h='<h2>快速測試</h2><p class="note">直接跳到某個情境的關鍵步驟，實際按一次確認流程對不對。原本的局會保留，測完按「結束測試」就回去。</p>'+(S.test?'<button class="btn pri" data-a="endTest">結束測試，回到原本的局</button>':'')
+      +TESTS.map((t,i)=>'<button class="btn" data-a="runTest" data-p="'+i+'" style="text-align:left;height:auto;padding:10px 14px"><b>'+t.n+'</b><span class="note" style="display:block;font-weight:400;margin-top:4px">'+t.d+'</span></button>').join('')
+      +'<button class="btn" data-a="close">關閉</button>';
   }else if(s.type==='log'){h='<h2>本局紀錄</h2>'+logHtml()+'<button class="btn pri" data-a="close">關閉</button>';
   }else if(s.type==='cheat'){h='<h2>裁判小抄</h2><ul class="cheat">'
       +'<li><b>已出局的角色照樣叫。</b>每晚所有角色的台詞都要念完並停頓，否則場上能聽出誰死了。</li>'
@@ -745,9 +771,11 @@ function act(a,p,ev){
     case'toggleAlive':{const q=P(id);if(q.alive){q.alive=false;q.death={r:S.round,ph:S.phase,c:'裁判手動標記'};log(nm(id)+' 出局：裁判手動標記')}else{q.alive=true;q.death=null;log(nm(id)+' 復活（裁判修正）')}break}
     case'toggleSheriff':S.sheriff=S.sheriff===id?null:id;S.sheriffDone=true;break;
     case'timer':S.sheet=null;timerShow();break;
+    case'runTest':runTest(id);break;
+    case'endTest':endTest();break;
   }
   save();render();
-  if(['next','prev','dawn','toNight','start','toAssign','toSetup','again','end'].indexOf(a)>=0)window.scrollTo(0,0);
+  if(['next','prev','dawn','toNight','start','toAssign','toSetup','again','end','runTest','endTest'].indexOf(a)>=0)window.scrollTo(0,0);
 }
 document.addEventListener('click',function(ev){const el=ev.target.closest('[data-a]');if(!el||el.disabled)return;wake();
   const a=el.getAttribute('data-a'),p=el.getAttribute('data-p')||'';act(a,p,ev);
