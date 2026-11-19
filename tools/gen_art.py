@@ -31,6 +31,9 @@ ROLES = {
     "guard":     (GOD,  "A night watchman in simple armour holding a round wooden shield and a lantern, standing protectively."),
     "idiot":     (GOD,  "A cheerful village fool in a patched jester's cap, grinning, holding a playing card face-out with a blank face."),
     "knight":    (GOD,  "A knight in plain plate armour raising a longsword in a duelling salute, moonlight on the blade."),
+    "wolfbro":   (WOLF, "A tall, broad-shouldered dark-furred werewolf elder brother in a worn leather coat, a wolf-tooth pendant on his chest, one arm held out protectively."),
+    "wolfyb":    (WOLF, "A young, slender werewolf with pale grey fur wearing an oversized hooded villager's cloak, half hiding his muzzle, wide innocent-looking eyes."),
+    "merchant":  (GOD,  "A shrewd travelling black-market merchant in a patched hooded cloak, holding one side of the coat open to reveal a small crystal orb, a poison vial and an old pistol hanging inside."),
     "villager":  (VIL,  "An ordinary villager in a wool cloak holding a lit candle lantern, looking wary, cottages behind."),
 }
 
