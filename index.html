@@ -141,7 +141,10 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .foot .btn.back{flex:0 0 auto}
 #toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 62px);z-index:30;box-shadow:0 4px 16px var(--shade);background:var(--fg);color:var(--bg);
   font-size:.86rem;font-weight:600;padding:8px 14px;border-radius:999px;max-width:calc(100% - 32px);pointer-events:none}
-.bar h1 svg{vertical-align:-3px;margin-right:6px;color:var(--moon)}
+.bar h1 svg{display:block;color:var(--moon)}
+.orb{display:inline-block;position:relative;width:22px;height:22px;vertical-align:-5px;margin-right:4px;padding:2px;box-sizing:content-box;overflow:hidden}
+.orb .old{position:absolute;inset:2px;transform:scale(0);transform-origin:50% 170%}
+.ttl{display:inline-block}
 
 /* 按鈕 */
 .row{display:flex;gap:8px;flex-wrap:wrap}
@@ -162,6 +165,12 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
   @keyframes enter{from{transform:translateY(14px)}}
   .sheet.in{animation:up .26s cubic-bezier(.2,.9,.3,1)}
   @keyframes up{from{transform:translateY(48px)}}
+  .swap .orb svg{transform-origin:50% 170%;animation:orbin .9s cubic-bezier(.3,.9,.3,1) backwards}
+  .swap .orb .old{animation:orbout .9s cubic-bezier(.5,0,.7,.4) backwards}
+  .swap .ttl{animation:ttlin .6s cubic-bezier(.2,.8,.3,1) .15s backwards}
+  @keyframes orbin{0%{transform:rotate(-100deg)}45%{transform:rotate(-100deg)}85%{transform:rotate(7deg)}100%{transform:none}}
+  @keyframes orbout{0%{transform:rotate(0)}50%{transform:rotate(100deg)}100%{transform:rotate(100deg)}}
+  @keyframes ttlin{from{transform:translateY(1.2em)}}
   #flip.on{display:flex}
   #flip.on .fc{animation:cardflip 1.25s cubic-bezier(.3,.7,.3,1) forwards}
   @keyframes cardflip{0%{transform:translateY(60vh) scale(.5) rotateY(0)}18%{transform:scale(1) rotateY(0)}26%{transform:scale(1) rotateY(0)}58%{transform:scale(1.06) rotateY(180deg)}86%{transform:scale(1) rotateY(180deg)}100%{transform:translateY(-110vh) scale(.8) rotateY(180deg)}}
@@ -435,7 +444,7 @@ const ICON={moon:'<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="t
 const STEPN={bros:'兄弟',awake:'覺醒刀',merchant:'商人',lucky:'幸運兒',close:'入夜',guard:'守衛',wolf:'狼人',beauty:'狼美人',witch:'女巫',seer:'預言家',hunter:'獵人',ident:'確認',dawn:'天亮'};
 function foot(h){return '<div class="foot"><div class="row">'+h+'</div></div>'}
 function bar(title,sub){const g=S.phase!=='setup';
-  return '<header class="bar"><h1>'+(ICON[sub]||'')+title+'</h1>'
+  return '<header class="bar"><h1>'+(ICON[sub]?'<span class="orb">'+ICON[sub]+'</span>':'')+'<span class="ttl">'+title+'</span></h1>'
     +'<button class="ib" data-a="undo"'+(H.length?'':' disabled')+'>復原</button>'
     +(g?'<button class="ib'+(S.hide?' on':'')+'" data-a="hide">'+(S.hide?'已遮蔽':'遮蔽')+'</button>':'')
     +'<button class="ib" data-a="menu">選單</button></header>'}
@@ -694,7 +703,9 @@ function render(){const v={setup:vSetup,assign:vAssign,night:vNight,day:vDay,ove
   flipKey=fk;
   const on=document.querySelector('.steps li.on');if(on&&on.parentNode.scrollWidth>on.parentNode.clientWidth)on.parentNode.scrollLeft=on.offsetLeft-on.parentNode.clientWidth/2+on.offsetWidth/2;
   const sk=S.phase==='day'?'_day':S.phase==='over'?'':'_night';
-  if(sk!==sceneKey){const first=sceneKey===null,sc=document.getElementById('scene'),img=sk&&ART[sk]?'url('+ART[sk]+')':'none';sceneKey=sk;
+  if(sk!==sceneKey){const oi={_night:'moon',_day:'sun'}[sceneKey],orb=app.querySelector('.bar .orb');
+    if(oi&&sk&&orb){orb.insertAdjacentHTML('beforeend',ICON[oi].replace('<svg','<svg class="old"'));orb.parentNode.classList.add('swap')}
+    const first=sceneKey===null,sc=document.getElementById('scene'),img=sk&&ART[sk]?'url('+ART[sk]+')':'none';sceneKey=sk;
     if(first)sc.style.backgroundImage=img;else{sc.style.opacity='0';setTimeout(function(){sc.style.backgroundImage=img;sc.style.opacity=''},380)}}}
 let sceneKey=null,viewKey=null,sheetKey='',flipKey='',nightKey=null,flipT=0;
 /* 進入某個職能的夜晚步驟時，畫面正中間翻一張牌：牌背 → 該角色卡 */
