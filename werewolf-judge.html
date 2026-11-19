@@ -207,6 +207,8 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .veil{position:fixed;inset:0;z-index:20;background:var(--shade);display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:18px 18px 0 0;width:100%;max-width:34rem;max-height:86%;overflow:auto;
   padding:16px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
+/* 面板是直向 flex 且有高度上限：內容太多時要捲動，不能把按鈕壓扁 */
+.sheet>*{flex-shrink:0}
 .sheet h2{margin:0;font-family:var(--display);font-weight:900;font-size:1.25rem}
 .log{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:.88rem}
 .log .hd{font-weight:700;color:var(--moon);margin-top:8px}
