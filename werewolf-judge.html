@@ -46,8 +46,8 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .ib.on{background:var(--moon);color:var(--on-moon);border-color:var(--moon)}
 
 /* 場景底圖：鋪在頁首後方，往下淡出，不佔版面 */
-#scene{position:absolute;top:0;left:0;right:0;height:21rem;z-index:-1;background-size:cover;background-position:center 30%;opacity:var(--scene-op);pointer-events:none;
-  -webkit-mask-image:linear-gradient(#000 20%,transparent);mask-image:linear-gradient(#000 20%,transparent)}
+#scene{position:absolute;top:0;left:0;right:0;height:32rem;z-index:-1;background-size:cover;background-position:center 30%;opacity:var(--scene-op);pointer-events:none;
+  -webkit-mask-image:linear-gradient(#000 12%,transparent);mask-image:linear-gradient(#000 12%,transparent)}
 /* 座位頭像：直接裁角色卡的臉 */
 .hd{display:flex;align-items:center;gap:5px}
 .av{width:1.75rem;height:1.75rem;border-radius:50%;background-size:270%;background-repeat:no-repeat;border:1px solid var(--line);flex:0 0 auto}
@@ -73,7 +73,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 
 /* 座位盤 */
 .board{display:grid;grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr));gap:6px}
-.chip{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 4px 5px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;min-height:4.4rem}
+.chip{position:relative;background:color-mix(in srgb,var(--surface) 74%,transparent);border:1px solid var(--line);border-radius:10px;padding:6px 4px 5px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;min-height:4.4rem}
 .chip b{font-size:1.15rem;line-height:1.1;font-variant-numeric:tabular-nums}
 .chip .nm{font-size:.68rem;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-height:1em}
 .chip .rl{font-size:.78rem;font-weight:600}
@@ -86,7 +86,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .tag.bad{background:var(--wolf);color:var(--bg);border-color:var(--wolf)}
 
 /* 卡片與台詞 */
-.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.card{background:color-mix(in srgb,var(--surface) 76%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
 .card h2{margin:0;font-family:var(--display);font-size:1.08rem;font-weight:900;letter-spacing:.03em;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .card h2 small{font-family:var(--ui);letter-spacing:0;font-weight:500;color:var(--muted);font-size:.78rem}
 .say{font-family:var(--display);font-weight:600;font-size:1.12rem;line-height:1.65;margin:0;padding-left:12px;border-left:3px solid var(--moon);text-wrap:pretty}
@@ -100,9 +100,9 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .win p{margin:0;font-family:var(--display);font-weight:900;font-size:1.25rem}
 
 /* 座位可選狀態 */
-.tm-wolf{background:color-mix(in srgb,var(--wolf) 13%,var(--surface))}
-.tm-god{background:color-mix(in srgb,var(--god) 11%,var(--surface))}
-.tm-vil{background:color-mix(in srgb,var(--vil) 9%,var(--surface))}
+.tm-wolf{background:color-mix(in srgb,var(--wolf) 16%,color-mix(in srgb,var(--surface) 74%,transparent))}
+.tm-god{background:color-mix(in srgb,var(--god) 14%,color-mix(in srgb,var(--surface) 74%,transparent))}
+.tm-vil{background:color-mix(in srgb,var(--vil) 11%,color-mix(in srgb,var(--surface) 74%,transparent))}
 .chip.pickable{border-color:var(--muted)}
 .chip.sel{background:var(--moon);border-color:var(--moon);color:var(--on-moon);box-shadow:0 0 0 3px color-mix(in srgb,var(--moon) 35%,transparent)}
 .chip.sel .nm,.chip.sel .rl{color:var(--on-moon)}
@@ -117,7 +117,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .steps li.on{background:var(--moon);color:var(--on-moon);border-color:var(--moon)}
 
 /* 固定底部主操作 */
-.foot{position:fixed;left:0;right:0;bottom:0;z-index:12;background:var(--bg);border-top:1px solid var(--line);
+.foot{position:fixed;left:0;right:0;bottom:0;z-index:12;background:color-mix(in srgb,var(--bg) 74%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--line);
   padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .foot .row{max-width:34rem;margin:0 auto;flex-wrap:nowrap}
 .foot .btn{min-height:52px;font-size:1.02rem}
@@ -133,7 +133,24 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .btn{box-shadow:inset 0 1px 0 color-mix(in srgb,var(--fg) 9%,transparent)}
 .btn.pri,.btn.sel{background:linear-gradient(180deg,color-mix(in srgb,var(--moon) 86%,#fff),var(--moon));color:var(--on-moon);border-color:color-mix(in srgb,var(--moon) 72%,#000);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 2px 0 color-mix(in srgb,var(--moon) 50%,#000)}
-.btn:active:not(:disabled),.chip:active:not(:disabled),.pm:active:not(:disabled),.ib:active:not(:disabled){transform:translateY(1px)}
+.btn,.chip,.rb,.pm,.ib{transition:transform .09s ease-out,background-color .16s,border-color .16s,box-shadow .16s,opacity .16s}
+.btn:active:not(:disabled),.chip:active:not(:disabled),.rb:active:not(:disabled),.pm:active:not(:disabled),.ib:active:not(:disabled){transform:translateY(1px) scale(.96)}
+.btn.pri:active:not(:disabled){box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 0 0 color-mix(in srgb,var(--moon) 50%,#000)}
+/* 動畫只動位移與縮放，不動透明度：就算動畫沒跑，內容也一定看得到 */
+@media (prefers-reduced-motion:no-preference){
+  .pop{animation:pop .26s cubic-bezier(.3,1.5,.5,1)}
+  @keyframes pop{0%{transform:scale(.88)}60%{transform:scale(1.06)}100%{transform:none}}
+  .enter{animation:enter .24s cubic-bezier(.2,.8,.3,1) backwards}
+  .enter:nth-of-type(2){animation-delay:.04s} .enter:nth-of-type(3){animation-delay:.08s} .enter:nth-of-type(n+4){animation-delay:.12s}
+  @keyframes enter{from{transform:translateY(14px)}}
+  .sheet.in{animation:up .26s cubic-bezier(.2,.9,.3,1)}
+  @keyframes up{from{transform:translateY(48px)}}
+  .reveal.flip{animation:flip .34s ease-out}
+  @keyframes flip{from{transform:perspective(700px) rotateY(85deg)}}
+  #toast{animation:drop .22s ease-out}
+  @keyframes drop{from{transform:translate(-50%,-12px)}}
+  #scene{transition:opacity .4s}
+}
 .btn:disabled{box-shadow:none}
 .btn.red{color:var(--wolf);border-color:var(--wolf);background:transparent}
 .btn:disabled{opacity:.35}
@@ -149,7 +166,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .step:last-child{border-bottom:0}
 .step .lb{flex:1;min-width:0;font-weight:600}
 .step .lb small{display:block;font-weight:400;color:var(--muted);font-size:.74rem}
-.step .v{width:2.2em;text-align:center;font-size:1.15rem;font-weight:700;font-variant-numeric:tabular-nums}
+.step .v{display:inline-block;width:2.2em;text-align:center;font-size:1.15rem;font-weight:700;font-variant-numeric:tabular-nums}
 .pm{width:42px;height:42px;border-radius:10px;background:var(--surface2);border:1px solid var(--line);font-size:1.3rem;line-height:1}
 .pm:disabled{opacity:.3}
 .c-wolf{color:var(--wolf)} .c-god{color:var(--god)} .c-vil{color:var(--vil)}
@@ -532,11 +549,20 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
 let toastT=null;
 function toast(m){const el=document.getElementById('toast');el.textContent=m;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){el.hidden=true},1600)}
 function render(){const v={setup:vSetup,assign:vAssign,night:vNight,day:vDay,over:vOver}[S.phase]();
-  document.getElementById('app').innerHTML=v+vSheet();
+  const app=document.getElementById('app');app.innerHTML=v+vSheet();
+  const vk=S.phase+':'+S.round+':'+S.step+':'+(S.pick?S.pick.type:'');
+  if(vk!==viewKey){viewKey=vk;app.querySelectorAll(':scope > section.card').forEach(e=>e.classList.add('enter'))}
+  const shk=S.view?'view'+S.view.i:S.sheet?S.sheet.type+(S.sheet.pid||''):'';
+  if(shk&&shk!==sheetKey){const sh=app.querySelector('.sheet');if(sh)sh.classList.add('in')}
+  sheetKey=shk;
+  const fk=S.view?S.view.i+':'+S.view.on:'';
+  if(fk&&flipKey&&fk!==flipKey&&fk.split(':')[0]===flipKey.split(':')[0]){const rv=app.querySelector('.reveal');if(rv)rv.classList.add('flip')}
+  flipKey=fk;
   const on=document.querySelector('.steps li.on');if(on&&on.parentNode.scrollWidth>on.parentNode.clientWidth)on.parentNode.scrollLeft=on.offsetLeft-on.parentNode.clientWidth/2+on.offsetWidth/2;
   const sk=S.phase==='day'?'_day':S.phase==='over'?'':'_night';
-  if(sk!==sceneKey){sceneKey=sk;document.getElementById('scene').style.backgroundImage=sk&&ART[sk]?'url('+ART[sk]+')':'none'}}
-let sceneKey=null;
+  if(sk!==sceneKey){const first=sceneKey===null,sc=document.getElementById('scene'),img=sk&&ART[sk]?'url('+ART[sk]+')':'none';sceneKey=sk;
+    if(first)sc.style.backgroundImage=img;else{sc.style.opacity='0';setTimeout(function(){sc.style.backgroundImage=img;sc.style.opacity=''},380)}}}
+let sceneKey=null,viewKey=null,sheetKey='',flipKey='';
 /* 頭像樣式只注入一次，避免每個座位都重複塞一份圖 */
 (function(){const FACE={wolf:40,wolfking:31,whitewolf:31,beauty:25,seer:27,witch:27,hunter:32,guard:21,idiot:41,knight:29,villager:26};let css='';
   Object.keys(FACE).forEach(k=>{if(ART[k])css+='.av-'+k+'{background-image:url('+ART[k]+');background-position:50% '+FACE[k]+'%}'});
@@ -619,7 +645,14 @@ function act(a,p,ev){
   save();render();
   if(['next','prev','dawn','toNight','start','toAssign','toSetup','again','end'].indexOf(a)>=0)window.scrollTo(0,0);
 }
-document.addEventListener('click',function(ev){const el=ev.target.closest('[data-a]');if(!el||el.disabled)return;wake();act(el.getAttribute('data-a'),el.getAttribute('data-p')||'',ev)});
+document.addEventListener('click',function(ev){const el=ev.target.closest('[data-a]');if(!el||el.disabled)return;wake();
+  const a=el.getAttribute('data-a'),p=el.getAttribute('data-p')||'';act(a,p,ev);
+  /* 畫面重繪後，讓剛點的那一顆彈一下，確認有按到 */
+  if(el.classList.contains('chip')||el.classList.contains('rb')||a==='save'||a==='role+'||a==='role-'||a==='n+'||a==='n-'){
+    const sel=a==='n+'||a==='n-'||a==='role+'||a==='role-'?null:'[data-a="'+a+'"][data-p="'+p+'"]';
+    const t=sel?document.querySelector('#app '+sel):null;if(t)t.classList.add('pop');
+    if(!sel){const b=[...document.querySelectorAll('#app [data-a="'+a+'"]')].find(e=>(e.getAttribute('data-p')||'')===p),vv=b&&b.parentNode.querySelector('.v');if(vv)vv.classList.add('pop')}
+    if(a==='check'||a==='kill'){const bg=document.querySelector('#app .big');if(bg)bg.classList.add('pop')}}});
 document.addEventListener('change',function(ev){const el=ev.target,c=el.getAttribute&&el.getAttribute('data-c');if(!c)return;const p=el.getAttribute('data-p');snap();
   if(c==='rule'){const v=el.value;S.cfg.rules[p]=v==='true'?true:v==='false'?false:v}
   if(c==='name')P(+p).name=el.value.trim();
