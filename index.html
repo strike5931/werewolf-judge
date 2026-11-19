@@ -65,6 +65,11 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .av{width:1.75rem;height:1.75rem;border-radius:50%;background-size:270%;background-repeat:no-repeat;border:1px solid var(--line);flex:0 0 auto}
 .av-wolf{filter:brightness(1.7) contrast(.9)}
 .chip.dead .av{filter:grayscale(1);opacity:.45}
+.av.av-back{background-size:cover;background-position:center;border-radius:5px;width:1.3rem;margin:0 .225rem}
+#flip{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;pointer-events:none;perspective:900px}
+.fc{position:relative;width:min(58vw,15rem);aspect-ratio:2/3;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;transform:scale(0)}
+.fc i{position:absolute;inset:0;border-radius:16px;border:2px solid var(--line);background-size:cover;background-position:center;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 18px 50px rgba(0,0,0,.65);filter:none}
+.fc .ff{transform:rotateY(180deg);background-size:cover;background-position:center}
 .chip.sel .av{border-color:var(--on-moon)}
 
 /* 角色快選按鈕 */
@@ -157,6 +162,9 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
   @keyframes enter{from{transform:translateY(14px)}}
   .sheet.in{animation:up .26s cubic-bezier(.2,.9,.3,1)}
   @keyframes up{from{transform:translateY(48px)}}
+  #flip.on{display:flex}
+  #flip.on .fc{animation:cardflip 1.25s cubic-bezier(.3,.7,.3,1) forwards}
+  @keyframes cardflip{0%{transform:translateY(60vh) scale(.5) rotateY(0)}18%{transform:scale(1) rotateY(0)}26%{transform:scale(1) rotateY(0)}58%{transform:scale(1.06) rotateY(180deg)}86%{transform:scale(1) rotateY(180deg)}100%{transform:translateY(-110vh) scale(.8) rotateY(180deg)}}
   .reveal.flip{animation:flip .34s ease-out}
   @keyframes flip{from{transform:perspective(700px) rotateY(85deg)}}
   #toast{animation:drop .22s ease-out}
@@ -214,6 +222,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 <div id="scene" aria-hidden="true"></div>
 <div id="app"></div>
 <div id="timer" hidden></div>
+<div id="flip" aria-hidden="true"></div>
 <div id="toast" role="status" hidden></div>
 
 <script>
@@ -407,7 +416,7 @@ function chip(p,o){o=o||{};const r=p.role?ROLES[p.role]:null,t=[];
   }
   const dis=o.act&&o.dis&&o.dis(p);
   return '<button class="chip '+(p.alive?'':'dead ')+(r&&!S.hide?'tm-'+r.t:'')+(o.act&&!dis?' pickable':'')+(o.act&&o.sel===p.id?' sel':'')+'" data-a="'+(o.act||'player')+'" data-p="'+p.id+'"'+(dis?' disabled':'')+' aria-label="'+p.id+'號">'
-    +'<span class="hd">'+(r&&!S.hide&&ART[p.role]?'<i class="av av-'+p.role+'"></i>':'')+'<b>'+p.id+'</b></span><span class="nm">'+esc(p.name)+'</span><span class="rl">'+(S.hide?'···':r?r.n:'未知')+'</span><span class="tags">'+t.join('')+'</span></button>'}
+    +'<span class="hd">'+(r&&!S.hide&&ART[p.role]?'<i class="av av-'+p.role+'"></i>':ART._back?'<i class="av av-back"></i>':'')+'<b>'+p.id+'</b></span><span class="nm">'+esc(p.name)+'</span><span class="rl">'+(S.hide?'···':r?r.n:'未知')+'</span><span class="tags">'+t.join('')+'</span></button>'}
 function board(o){return '<div class="board">'+S.players.map(p=>chip(p,o)).join('')+'</div>'}
 /* 選人：同一個座位盤切成可選狀態，list 以外的座位停用 */
 function pick(act,list,o){o=o||{};const ids=list.map(p=>p.id);
@@ -673,6 +682,10 @@ function render(){const v={setup:vSetup,assign:vAssign,night:vNight,day:vDay,ove
   const app=document.getElementById('app');app.innerHTML=v+vSheet();
   const vk=S.phase+':'+S.round+':'+S.step+':'+(S.pick?S.pick.type:'');
   if(vk!==viewKey){viewKey=vk;app.querySelectorAll(':scope > section.card').forEach(e=>e.classList.add('enter'))}
+  const nk=S.phase==='night'?S.round+':'+S.step:'';
+  if(nk&&nightKey!==null&&nk!==nightKey){const o=nightKey.split(':'),fwd=!nightKey||+o[0]<S.round||(+o[0]===S.round&&+o[1]<S.step);
+    const k=STEPART[nightSteps()[S.step]];if(fwd&&k&&ART[k])playFlip(k)}
+  nightKey=nk;
   const shk=S.view?'view'+S.view.i:S.sheet?S.sheet.type+(S.sheet.pid||''):'';
   if(shk&&shk!==sheetKey){const sh=app.querySelector('.sheet');if(sh)sh.classList.add('in')}
   sheetKey=shk;
@@ -683,10 +696,16 @@ function render(){const v={setup:vSetup,assign:vAssign,night:vNight,day:vDay,ove
   const sk=S.phase==='day'?'_day':S.phase==='over'?'':'_night';
   if(sk!==sceneKey){const first=sceneKey===null,sc=document.getElementById('scene'),img=sk&&ART[sk]?'url('+ART[sk]+')':'none';sceneKey=sk;
     if(first)sc.style.backgroundImage=img;else{sc.style.opacity='0';setTimeout(function(){sc.style.backgroundImage=img;sc.style.opacity=''},380)}}}
-let sceneKey=null,viewKey=null,sheetKey='',flipKey='';
+let sceneKey=null,viewKey=null,sheetKey='',flipKey='',nightKey=null,flipT=0;
+/* 進入某個職能的夜晚步驟時，畫面正中間翻一張牌：牌背 → 該角色卡 */
+const STEPART={bros:'wolfbro',guard:'guard',wolf:'wolf',beauty:'beauty',merchant:'merchant',witch:'witch',seer:'seer',hunter:'hunter'};
+function playFlip(k){const el=document.getElementById('flip');if(!el||!window.matchMedia||!matchMedia('(prefers-reduced-motion:no-preference)').matches)return;
+  clearTimeout(flipT);el.classList.remove('on');el.innerHTML='<div class="fc"><i class="av-back"></i><i class="ff av-'+k+'"></i></div>';
+  void el.offsetWidth;el.classList.add('on');flipT=setTimeout(function(){el.classList.remove('on');el.innerHTML=''},1350)}
 /* 頭像樣式只注入一次，避免每個座位都重複塞一份圖 */
 (function(){const FACE={wolfbro:34,wolfyb:34,merchant:28,wolf:40,wolfking:31,whitewolf:31,beauty:25,seer:27,witch:27,hunter:32,guard:21,idiot:41,knight:29,villager:26};let css='';
   Object.keys(FACE).forEach(k=>{if(ART[k])css+='.av-'+k+'{background-image:url('+ART[k]+');background-position:50% '+FACE[k]+'%}'});
+  if(ART._back)css+='.av-back{background-image:url('+ART._back+')}';
   if(css){const st=document.createElement('style');st.textContent=css;document.head.appendChild(st)}})();
 
 /* ---------- 動作 ---------- */
