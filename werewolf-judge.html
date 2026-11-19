@@ -54,6 +54,17 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .av-wolf{filter:brightness(1.7) contrast(.9)}
 .chip.dead .av{filter:grayscale(1);opacity:.45}
 .av.av-back{background-size:cover;background-position:center;border-radius:5px;width:1.3rem;margin:0 .225rem}
+.cg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cg button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 4px 8px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);min-width:0}
+.cg i{display:block;width:100%;aspect-ratio:2/3;border-radius:8px;background-size:cover!important;background-position:center!important;filter:none}
+.cg b{font-size:.85rem}
+.stage3d{perspective:900px;display:flex;justify-content:center;padding:14px 0 6px;touch-action:none;-webkit-user-select:none;user-select:none;cursor:grab}
+.c3d{position:relative;width:min(56vw,13.5rem);aspect-ratio:2/3;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;will-change:transform}
+.c3d.rest{transition:transform .55s cubic-bezier(.2,1.3,.4,1)}
+.c3d i{position:absolute;inset:0;border-radius:14px;border:2px solid var(--line);background-size:cover!important;background-position:center!important;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 16px 40px rgba(0,0,0,.55);filter:none;overflow:hidden}
+.c3d .cb{transform:rotateY(180deg)}
+.gl{position:absolute;inset:-60%;background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.38),rgba(255,255,255,.08) 32%,transparent 55%);mix-blend-mode:soft-light;transform:translate(var(--gx,0),var(--gy,-25%));pointer-events:none}
+.ct{font-family:var(--ui);font-weight:500;font-size:.8rem;color:var(--muted);margin-left:.6em;letter-spacing:0}
 #flip{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;pointer-events:none;perspective:900px}
 .fc{position:relative;width:min(58vw,15rem);aspect-ratio:2/3;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;transform:scale(0)}
 .fc i{position:absolute;inset:0;border-radius:16px;border:2px solid var(--line);background-size:cover;background-position:center;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 18px 50px rgba(0,0,0,.65);filter:none}
@@ -242,6 +253,24 @@ const ROLES={
   villager:{n:'平民',t:'vil',d:'沒有技能'}
 };
 const TEAM={wolf:'狼人陣營',god:'神職',vil:'平民'};
+/* 卡牌圖鑑的完整效果說明 */
+const FX={
+  wolf:'每晚和狼隊友一起睜眼，共同襲擊一名玩家。白天可以自爆，直接進入黑夜。',
+  wolfking:'出局時可以開槍帶走一名玩家。被女巫毒殺或自爆時不能開槍。',
+  whitewolf:'白天可以自爆並帶走一名玩家，隨後直接進入黑夜。',
+  beauty:'每晚在狼人行動後魅惑一名玩家。狼美人出局時，最後被魅惑的人跟著殉情出局，殉情者不能發動技能。',
+  wolfbro:'第一夜和狼弟互認，之後跟狼人一起行動。狼兄出局後，狼弟覺醒。',
+  wolfyb:'狼兄在場時不進狼坑，被預言家查驗是好人。狼兄出局當晚起加入狼隊，並多一刀（可保留）；這一刀和狼刀砍同一人時，解藥和守衛都救不了。被黑市商人交易到，商人出局。',
+  seer:'每晚查驗一名玩家，得知他是好人還是狼人。',
+  witch:'有一瓶解藥和一瓶毒藥，整局各用一次。解藥救當晚被刀的人，毒藥毒一名玩家；被毒的人不能發動技能。',
+  hunter:'被刀或被放逐出局時，可以當下開槍帶走一名玩家。被毒不能開槍。',
+  guard:'每晚守護一名玩家，使他不被狼刀殺死。不能連續兩晚守同一人。',
+  idiot:'被放逐時翻牌免死，之後失去投票權，但仍可發言。',
+  knight:'白天可以翻牌決鬥一名玩家，整局一次。對方是狼人則對方出局；對方是好人則騎士出局。',
+  merchant:'整局交易一次。狼人行動後睜眼，選一名玩家並給他毒藥（手勢 1）、獵槍（2）或查驗（3）。交易到狼人則商人出局。拿到技能的人是幸運兒，隔天起在幸運兒階段使用。',
+  villager:'沒有技能。靠發言和投票找出狼人。'
+};
+const CARDS=()=>Object.keys(ROLES).filter(k=>ART[k]);
 const BOARDS=[
   ['預女獵白',{wolf:4,seer:1,witch:1,hunter:1,idiot:1,villager:4}],
   ['預女獵守',{wolf:4,seer:1,witch:1,hunter:1,guard:1,villager:4}],
@@ -645,11 +674,19 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
       +'<label class="field">名字<input id="q-name" data-c="name" data-p="'+p.id+'" value="'+esc(p.name)+'" maxlength="12" autocomplete="off" placeholder="可留空"></label>'
       +'<div class="row"><button class="btn" data-a="setRole" data-p="'+p.id+':"'+(p.role?'':' disabled')+'>清除身份</button><button class="btn pri" data-a="close">完成</button></div>';
   }else if(s.type==='menu'){const g=S.phase==='night'||S.phase==='day';
-    h='<h2>選單</h2>'+(S.test?'<button class="btn pri" data-a="endTest">結束測試，回到原本的局</button>':'')+'<button class="btn" data-a="open" data-p="log">本局紀錄</button><button class="btn" data-a="open" data-p="cheat">裁判小抄</button>'
+    h='<h2>選單</h2>'+(S.test?'<button class="btn pri" data-a="endTest">結束測試，回到原本的局</button>':'')+'<button class="btn" data-a="open" data-p="log">本局紀錄</button><button class="btn" data-a="open" data-p="cheat">裁判小抄</button><button class="btn" data-a="open" data-p="cards">卡牌圖鑑</button>'
       +'<button class="btn" data-a="timer">發言計時器</button><button class="btn" data-a="open" data-p="tests">快速測試</button>'
       +(g?'<button class="btn" data-a="end">結束遊戲，公布身份</button><button class="btn" data-a="again">重新開始（同配置、同座位）</button>':'')
       +(S.phase!=='setup'?'<button class="btn" data-a="toSetup">回到配置設定</button>':'')
       +'<p class="note">所有操作都能用「復原」退回，包含重新開始。</p><button class="btn pri" data-a="close">關閉</button>';
+  }else if(s.type==='cards'){
+    h='<h2>卡牌圖鑑</h2><div class="cg">'+CARDS().map(k=>'<button data-a="card" data-p="'+k+'"><i class="av-'+k+'"></i><b class="c-'+ROLES[k].t+'">'+ROLES[k].n+'</b></button>').join('')+'</div>'
+      +'<div class="row"><button class="btn" data-a="menu">回選單</button><button class="btn pri" data-a="close">關閉</button></div>';
+  }else if(s.type==='card'){const ks=CARDS(),i=ks.indexOf(s.k),r=ROLES[s.k],ios=typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function';
+    h='<div class="stage3d"><div class="c3d"><i class="cf av-'+s.k+'"><u class="gl"></u></i><i class="cb av-back"></i></div></div>'
+      +'<h2 class="c-'+r.t+'" style="text-align:center">'+r.n+'<small class="ct">'+TEAM[r.t]+'</small></h2><p class="say" style="margin:0">'+FX[s.k]+'</p>'
+      +'<p class="note">拖曳卡片可以旋轉，轉過去能看到牌背。'+(ios&&!motionOn?'</p><button class="btn sm" data-m="motion">開啟手機晃動連動</button>':motionOn?'晃動手機，卡片會跟著傾斜。</p>':'</p>')
+      +'<div class="row"><button class="btn" data-a="card" data-p="'+ks[(i+ks.length-1)%ks.length]+'">‹ 上一張</button><button class="btn" data-a="open" data-p="cards">圖鑑</button><button class="btn" data-a="card" data-p="'+ks[(i+1)%ks.length]+'">下一張 ›</button></div>';
   }else if(s.type==='tests'){h='<h2>快速測試</h2><p class="note">直接跳到某個情境的關鍵步驟，實際按一次確認流程對不對。原本的局會保留，測完按「結束測試」就回去。</p>'+(S.test?'<button class="btn pri" data-a="endTest">結束測試，回到原本的局</button>':'')
       +TESTS.map((t,i)=>'<button class="btn" data-a="runTest" data-p="'+i+'" style="text-align:left;height:auto;padding:10px 14px"><b>'+t.n+'</b><span class="note" style="display:block;font-weight:400;margin-top:4px">'+t.d+'</span></button>').join('')
       +'<button class="btn" data-a="close">關閉</button>';
@@ -707,8 +744,28 @@ function playFlip(k){const el=document.getElementById('flip');if(!el||!window.ma
   if(ART._back)css+='.av-back{background-image:url('+ART._back+')}';
   if(css){const st=document.createElement('style');st.textContent=css;document.head.appendChild(st)}})();
 
+/* ---------- 卡牌 3D：拖曳旋轉、手機晃動連動 ---------- */
+const tilt={rx:0,ry:0,base:0,drag:null,o:null};let motionOn=false;
+function tiltApply(rest){const c=document.querySelector('.c3d');if(!c)return;c.classList.toggle('rest',!!rest);
+  c.style.transform='rotateX('+tilt.rx.toFixed(2)+'deg) rotateY('+tilt.ry.toFixed(2)+'deg)';
+  const d=tilt.ry-tilt.base;c.style.setProperty('--gx',(-d*1.6).toFixed(1)+'%');c.style.setProperty('--gy',(-25+tilt.rx*1.6).toFixed(1)+'%')}
+document.addEventListener('pointerdown',e=>{const st=e.target.closest&&e.target.closest('.stage3d');if(!st)return;
+  tilt.drag={x:e.clientX,y:e.clientY,rx:tilt.rx,ry:tilt.ry};try{st.setPointerCapture(e.pointerId)}catch(_){}});
+document.addEventListener('pointermove',e=>{const d=tilt.drag;if(!d)return;
+  tilt.ry=d.ry+(e.clientX-d.x)*.7;tilt.rx=Math.max(-40,Math.min(40,d.rx-(e.clientY-d.y)*.45));tiltApply(false)});
+function tiltEnd(){if(!tilt.drag)return;tilt.drag=null;tilt.base=tilt.ry=Math.round(tilt.ry/180)*180;tilt.rx=0;tilt.o=null;tiltApply(true)}
+document.addEventListener('pointerup',tiltEnd);document.addEventListener('pointercancel',tiltEnd);
+function onOrient(e){if(tilt.drag||e.beta==null||!document.querySelector('.c3d'))return;
+  if(!tilt.o)tilt.o={b:e.beta,g:e.gamma};
+  const cl=(v,m)=>Math.max(-m,Math.min(m,v));
+  tilt.rx=cl(-(e.beta-tilt.o.b)*.8,30);tilt.ry=tilt.base+cl((e.gamma-tilt.o.g)*1.0,35);tiltApply(false)}
+function motionStart(){if(motionOn)return;motionOn=true;window.addEventListener('deviceorientation',onOrient)}
+if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission!=='function')motionStart();
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-m="motion"]');if(!b)return;
+  DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted'){motionStart();toast('已開啟，晃動手機試試');render()}else toast('沒有取得動作感應的權限')}).catch(()=>toast('這個瀏覽器不支援動作感應'))});
+
 /* ---------- 動作 ---------- */
-const UI=['seat','brush','player','menu','open','close','veil','pickOpen','pickCancel','viewShow','viewHide','viewNext','viewEnd','viewStart','hide','timer','undo'];
+const UI=['card','seat','brush','player','menu','open','close','veil','pickOpen','pickCancel','viewShow','viewHide','viewNext','viewEnd','viewStart','hide','timer','undo'];
 function act(a,p,ev){
   if(a==='veil'){if(ev.target.getAttribute('data-a')!=='veil')return;a='close'}
   if(UI.indexOf(a.split(':')[0])<0)snap();
@@ -721,6 +778,7 @@ function act(a,p,ev){
     case'open':S.sheet={type:p};break;
     case'player':S.sheet={type:'player',pid:id};break;
     case'close':S.sheet=null;break;
+    case'card':S.sheet={type:'card',k:p};tilt.rx=tilt.ry=tilt.base=0;tilt.o=null;break;
     case'n+':c.n++;c.roles.villager++;break;
     case'n-':c.n--;if(c.roles.villager>0)c.roles.villager--;break;
     case'role+':c.roles[p]++;break;
