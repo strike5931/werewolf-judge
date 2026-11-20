@@ -973,7 +973,7 @@ function lib(src,has){return new Promise(function(ok,no){if(has())return ok();co
 const roomId=c=>'wwj-room-'+c,tok=()=>Math.random().toString(36).slice(2)+Date.now().toString(36),clean=s=>String(s||'').trim().slice(0,12);
 const joinUrl=()=>location.origin+location.pathname+'?room='+NET.code;
 function soft(){const ae=document.activeElement;if(ae&&(ae.tagName==='INPUT'||ae.tagName==='SELECT')&&ae.closest('#app'))return;render()}
-function netKill(){clearTimeout(retryT);if(peer){const o=peer;peer=null;try{o.destroy()}catch(e){}}pconn=null;conns={}}
+function netKill(){clearTimeout(retryT);clearTimeout(typeof stageT==='undefined'?0:stageT);if(peer){const o=peer;peer=null;try{o.destroy()}catch(e){}}pconn=null;conns={}}
 
 /* 外觀：深色／淺色／跟隨手機。存在這支手機上，不跟著對局走 */
 const TKEY='wwj-theme';let THEME='dark';
@@ -1126,11 +1126,20 @@ function pvClean(d){if(!d||typeof d!=='object'||d.t!=='state'||!Array.isArray(d.
   return{n:n,seat:seat,role:role,lock:!!d.lock,alive:d.alive!==false,name:clean(d.name),ph:String(d.ph||'').slice(0,12),pk:d.pk==='night'||d.pk==='day'||d.pk==='over'?d.pk:'',online:!!d.online,play:d.play==='cards'||d.play==='online'?d.play:'phone',stp:String(d.stp||'').slice(0,8),lucky:ITEM[d.lucky]?d.lucky:'',act:actClean(d.act),over:String(d.over||'').slice(0,60),
     pz:(Array.isArray(d.pz)?d.pz:[]).slice(0,30).map(x=>x|0).filter(x=>x>=1&&x<=n),
     seats:d.seats.slice(0,n).map((q,i)=>({id:i+1,name:clean(q&&q.name),taken:!!(q&&q.taken),free:!!(q&&q.free)}))}}
-function playerConnect(){netKill();netSt='連線中…';
+/* 連線分三段，每段各自計時：卡在哪一段、可能是什麼原因，直接寫在畫面上，截圖就能判斷 */
+let stageT=0;
+function playerConnect(quiet){netKill();clearTimeout(stageT);
+  /* 自動重試時不把畫面上的失敗原因洗掉，連上了才換掉 */
+  const say=t=>{if(!quiet){netSt=t;soft()}};if(!quiet)netSt='（1/3）載入連線元件中…';
   lib(PEERJS,()=>window.Peer).then(function(){if(NET.mode!=='player'||!NET.code)return;const my=peer=new Peer();
-    const again=function(){if(peer!==my)return;clearTimeout(retryT);retryT=setTimeout(function(){if(NET.mode==='player'&&NET.code)playerConnect()},3500)};
+    say('（2/3）連到牽線服務中…');
+    stageT=setTimeout(function(){if(peer!==my)return;netSt='（2/3）連不上牽線服務。可能被 VPN、擋廣告功能或瀏覽器的防護擋住：請關掉 VPN、關掉這個網站的 Brave Shields／擋廣告，或改用 Chrome、Safari。自動重試中…';soft();again()},12000);
+    const again=function(){if(peer!==my)return;clearTimeout(retryT);retryT=setTimeout(function(){if(NET.mode==='player'&&NET.code)playerConnect(true)},3500)};
     my.on('open',function(){if(peer!==my)return;const cn=pconn=my.connect(roomId(NET.code),{reliable:true});
-      cn.on('open',function(){if(peer!==my)return;netSt='ok';lastPong=Date.now();cn.send({t:'hello',token:NET.token,name:NET.name});soft()});
+      clearTimeout(stageT);say('（3/3）正在和裁判的手機建立連線…');
+      stageT=setTimeout(function(){if(peer!==my||netSt==='ok')return;let ice='';try{ice=cn.peerConnection?cn.peerConnection.iceConnectionState:''}catch(e){}
+        netSt='（3/3）和裁判的手機連不起來'+(ice?'（'+ice+'）':'')+'。最常見的原因是其中一方開著 VPN，或用行動網路：請關掉 VPN，或和裁判連同一個 Wi-Fi／同一支手機的熱點。自動重試中…';soft();again()},15000);
+      cn.on('open',function(){if(peer!==my)return;clearTimeout(stageT);netSt='ok';lastPong=Date.now();cn.send({t:'hello',token:NET.token,name:NET.name});soft()});
       cn.on('data',function(d){if(peer!==my)return;lastPong=Date.now();if(d&&d.t==='pong')return;const v=pvClean(d);if(!v)return;const o=PV;PV=v;netSt='ok';
         if(v.role!==(o&&o.role)){tilt.rx=0;tilt.ry=tilt.base=180;tilt.o=null}
         else if(o&&(v.pk!==o.pk||v.ph!==o.ph))cover();
@@ -1143,8 +1152,8 @@ function playerConnect(){netKill();netSt='連線中…';
           else if(v.lucky&&!o.lucky)announce('','你是幸運兒','獲得'+ITEM[v.lucky])}
         soft()});
       cn.on('close',function(){if(peer!==my)return;netSt='連線中斷，重新連線中…';soft();again()})});
-    my.on('error',function(e){if(peer!==my)return;netSt=e.type==='peer-unavailable'?'找不到房間 '+NET.code+'。確認房號，並請裁判停在裁判台頁面。自動重試中…':'連線失敗，自動重試中…';soft();again()});
-    my.on('disconnected',function(){if(peer!==my)return;netSt='連線中斷，重新連線中…';soft();again()});
+    my.on('error',function(e){if(peer!==my)return;clearTimeout(stageT);netSt=e.type==='peer-unavailable'?'找不到房間 '+NET.code+'。確認房號，並請裁判停在裁判台頁面。自動重試中…':'連線失敗（'+String(e.type||'').slice(0,24)+'），自動重試中…';soft();again()});
+    my.on('disconnected',function(){if(peer!==my)return;clearTimeout(stageT);netSt='連線中斷，重新連線中…';soft();again()});
   }).catch(function(){netSt='連線元件載入失敗，請確認網路';soft();clearTimeout(retryT);retryT=setTimeout(function(){if(NET.mode==='player'&&NET.code)playerConnect()},4000)});}
 function psend(m){try{if(pconn&&pconn.open)pconn.send(m)}catch(e){}}
 let lastPong=0;
