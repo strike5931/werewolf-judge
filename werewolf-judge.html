@@ -60,6 +60,8 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr));gap:6px}
 .plist span{display:flex;gap:6px;align-items:center;padding:6px 8px;border-radius:10px;background:var(--surface2);border:1px solid var(--line);font-size:.84rem;color:var(--muted);min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .plist b{color:var(--fg)}
+.plist em{font-style:normal;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.plist button{flex:0 0 auto;width:28px;height:28px;border-radius:8px;background:transparent;border:1px solid var(--line);color:var(--muted);font-size:.8rem;padding:0}
 .plist .on{color:var(--fg);border-color:var(--vil)}
 .plist .off{border-style:dashed}
 .pseats{display:grid;grid-template-columns:repeat(auto-fill,minmax(5.2rem,1fr));gap:6px}
@@ -916,19 +918,23 @@ const NKEY='wwj-net-v1',PEERJS='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.
 let NET={mode:null},peer=null,pconn=null,conns={},netSt='',PV=null,retryT=0,pushT=0,holdOn=false;
 function netSave(){try{localStorage.setItem(NKEY,JSON.stringify(NET))}catch(e){}}
 function netLoad(){try{const d=JSON.parse(localStorage.getItem(NKEY));if(d&&d.mode)NET=d}catch(e){}}
-function lib(src,has){return new Promise(function(ok,no){if(has())return ok();const s=document.createElement('script');s.src=src;s.onload=function(){ok()};s.onerror=function(){no()};document.head.appendChild(s)})}
+const SRI={};SRI[PEERJS]='sha512-iFU+yF1keEaLDC9HEwPfLMSRaS0unBHE14GEgx6pQKJXjp5v0tvX8xpfp2lgJ62XEjbYp/M5C3CAmej/PWXMyA==';SRI[QRJS]='sha512-ZDSPMa/JM1D+7kdg2x3BsruQ6T/JpJo3jWDWkCZsP+5yVyp1KfESqLI+7RqB5k24F7p2cV7i2YHh/890y6P6Sw==';
+/* 外部函式庫用完整性雜湊鎖定內容：CDN 上的檔案被改過就不會執行 */
+function lib(src,has){return new Promise(function(ok,no){if(has())return ok();const s=document.createElement('script');s.src=src;s.integrity=SRI[src];s.crossOrigin='anonymous';s.onload=function(){ok()};s.onerror=function(){no()};document.head.appendChild(s)})}
 const roomId=c=>'wwj-room-'+c,tok=()=>Math.random().toString(36).slice(2)+Date.now().toString(36),clean=s=>String(s||'').trim().slice(0,12);
 const joinUrl=()=>location.origin+location.pathname+'?room='+NET.code;
 function soft(){const ae=document.activeElement;if(ae&&(ae.tagName==='INPUT'||ae.tagName==='SELECT')&&ae.closest('#app'))return;render()}
 function netKill(){clearTimeout(retryT);if(peer){const o=peer;peer=null;try{o.destroy()}catch(e){}}pconn=null;conns={}}
 
-/* 裁判端 */
+/* 裁判端。房號只有四位數，任何人都可能連進來，所以對方送來的東西一律當不可信：限制連線數、訊息頻率和記住的人數 */
+const MAXC=40;
 function hostOpen(fresh){if(NET.mode!=='host'||fresh)NET={mode:'host',code:String(1000+Math.floor(Math.random()*9000)),seats:{},names:{},dealt:false};
   netSave();netKill();netSt='開房中…';
   Promise.all([lib(PEERJS,()=>window.Peer),lib(QRJS,()=>window.qrcode).catch(function(){})]).then(function(){
     if(NET.mode!=='host')return;const my=peer=new Peer(roomId(NET.code));
     my.on('open',function(){if(peer!==my)return;netSt='ok';soft()});
-    my.on('connection',function(cn){cn.on('data',function(d){hostMsg(cn,d)});
+    my.on('connection',function(cn){if(Object.keys(my.connections||{}).length>MAXC){try{cn.close()}catch(e){}return}
+      cn.on('data',function(d){const t=Date.now();if(t-(cn.t0||0)>5000){cn.t0=t;cn.nm=0}if(++cn.nm>40){try{cn.close()}catch(e){}return}hostMsg(cn,d)});
       cn.on('close',function(){if(cn.tk&&conns[cn.tk]===cn){delete conns[cn.tk];soft()}})});
     my.on('disconnected',function(){if(peer===my)setTimeout(function(){if(peer===my&&!my.destroyed)try{my.reconnect()}catch(e){}},1500)});
     my.on('error',function(e){if(peer!==my)return;
@@ -947,7 +953,8 @@ function netPush(){if(NET.mode!=='host')return;clearTimeout(pushT);pushT=setTime
   if(NET.dealt&&S.players.every(p=>!p.role)){NET.dealt=false;netSave()}
   Object.keys(conns).forEach(tk=>{const cn=conns[tk];if(cn&&cn.open)try{cn.send(stateFor(tk))}catch(e){}})},0)}
 function hostMsg(cn,d){if(NET.mode!=='host'||!d||typeof d!=='object')return;
-  if(d.t==='hello'){const tk=String(d.token||'').slice(0,40);if(!tk)return;cn.tk=tk;const old=conns[tk];conns[tk]=cn;if(old&&old!==cn)try{old.close()}catch(e){}
+  if(d.t==='hello'){const tk=String(d.token||'').slice(0,40);if(!tk)return;
+    if(!(tk in NET.names)&&!(tk in NET.seats)&&Object.keys(NET.names).length>=MAXC)return;if(!(tk in NET.names))NET.names[tk]='';cn.tk=tk;const old=conns[tk];conns[tk]=cn;if(old&&old!==cn)try{old.close()}catch(e){}
     if(d.name)NET.names[tk]=clean(d.name)}
   const tk=cn.tk;if(!tk)return;const ow=owners(),mine=ow[NET.seats[tk]]===tk?NET.seats[tk]:0,open=!NET.dealt&&S.phase==='assign';
   if(d.t==='name'){NET.names[tk]=clean(d.name)}
@@ -964,19 +971,23 @@ function vRoom(){if(NET.mode!=='host')return '<h2>連線發牌</h2><p class="not
     +'<p class="note">加入方式：用手機相機掃 QR code；或打開同一個網址，按「加入房間」輸入房號；或把連結傳給大家。</p>'
     +'<div class="row"><button class="btn" data-n="share">分享連結</button></div>'
     +(S.players.length?'<div class="plist">'+S.players.map(p=>{const tk=ow[p.id],on=tk&&conns[tk]&&conns[tk].open;
-      return '<span class="'+(tk?on?'on':'off':'')+'"><b>'+p.id+'</b>'+(tk?esc(NET.names[tk]||'（沒填名字）')+(on?'':'・離線'):'空位')+'</span>'}).join('')+'</div>'
-      +'<p class="note">已入座 '+Object.keys(ow).length+'／'+S.players.length+'。'+(NET.dealt?'已發牌，玩家手機上看得到自己的身份。':un?'先在座位與發牌頁按「隨機發牌」（或手動指定），再發到手機。':'身份都排好了，可以發到手機。')+'</p>'
+      return '<span class="'+(tk?on?'on':'off':'')+'"><b>'+p.id+'</b><em>'+(tk?esc(NET.names[tk]||'（沒填名字）')+(on?'':'・離線'):'空位')+'</em>'+(tk?'<button data-n="kick" data-p="'+p.id+'" aria-label="請出 '+p.id+'號">✕</button>':'')+'</span>'}).join('')+'</div>'
+      +'<p class="note">已入座 '+Object.keys(ow).length+'／'+S.players.length+'。發牌前先核對名單，不認識的人按 ✕ 請出去。'+(NET.dealt?'已發牌，玩家手機上看得到自己的身份。':un?'先在座位與發牌頁按「隨機發牌」（或手動指定），再發到手機。':'身份都排好了，可以發到手機。')+'</p>'
       +'<div class="row">'+(NET.dealt?'<button class="btn" data-n="undeal">收回手機上的牌</button>':'<button class="btn pri" data-n="dealNet"'+(un?' disabled':'')+'>發牌到玩家手機</button>')+'</div>':'<p class="note">先到「座位與發牌」頁，玩家才能選座位。</p>')
     +(inAssign||NET.dealt?'':'<p class="note w">遊戲已開始，玩家不能再換座位。</p>')
     +'<div class="row"><button class="btn red" data-n="hostClose">關閉房間</button><button class="btn pri" data-a="close">完成</button></div>'}
 
-/* 玩家端 */
+/* 玩家端。主機送來的資料也不直接信：只留已知的欄位，型別和範圍都檢查過才拿去畫 */
+function pvClean(d){if(!d||typeof d!=='object'||d.t!=='state'||!Array.isArray(d.seats))return null;const n=Math.min(30,d.seats.length);
+  const seat=Number.isInteger(d.seat)&&d.seat>=1&&d.seat<=n?d.seat:0,role=typeof d.role==='string'&&(ROLES[d.role]||d.role==='wolfyb2')&&FX[d.role]?d.role:null;
+  return{n:n,seat:seat,role:role,lock:!!d.lock,alive:d.alive!==false,name:clean(d.name),ph:String(d.ph||'').slice(0,12),over:String(d.over||'').slice(0,60),
+    seats:d.seats.slice(0,n).map((q,i)=>({id:i+1,name:clean(q&&q.name),taken:!!(q&&q.taken)}))}}
 function playerConnect(){netKill();netSt='連線中…';
   lib(PEERJS,()=>window.Peer).then(function(){if(NET.mode!=='player'||!NET.code)return;const my=peer=new Peer();
     const again=function(){if(peer!==my)return;clearTimeout(retryT);retryT=setTimeout(function(){if(NET.mode==='player'&&NET.code)playerConnect()},3500)};
     my.on('open',function(){if(peer!==my)return;const cn=pconn=my.connect(roomId(NET.code),{reliable:true});
       cn.on('open',function(){if(peer!==my)return;netSt='ok';cn.send({t:'hello',token:NET.token,name:NET.name});soft()});
-      cn.on('data',function(d){if(peer!==my||!d||d.t!=='state')return;PV=d;netSt='ok';soft()});
+      cn.on('data',function(d){if(peer!==my)return;const v=pvClean(d);if(!v)return;PV=v;netSt='ok';soft()});
       cn.on('close',function(){if(peer!==my)return;netSt='連線中斷，重新連線中…';soft();again()})});
     my.on('error',function(e){if(peer!==my)return;netSt=e.type==='peer-unavailable'?'找不到房間 '+NET.code+'。確認房號，並請裁判停在裁判台頁面。自動重試中…':'連線失敗，自動重試中…';soft();again()});
     my.on('disconnected',function(){if(peer!==my)return;netSt='連線中斷，重新連線中…';soft();again()});
@@ -1008,6 +1019,7 @@ document.addEventListener('click',function(ev){const el=ev.target.closest&&ev.ta
   if(a==='hostOpen')hostOpen();
   else if(a==='hostClose'){hostClose();S.sheet=null;toast('房間已關閉')}
   else if(a==='dealNet'){NET.dealt=true;netSave();netPush();toast('已發牌到玩家手機')}
+  else if(a==='kick'){const tk=owners()[+p];if(tk){delete NET.seats[tk];delete NET.names[tk];const cn=conns[tk];delete conns[tk];if(cn)try{cn.close()}catch(e){}P(+p).name='';netSave();save();toast(p+'號的座位已清空')}}
   else if(a==='undeal'){NET.dealt=false;netSave();netPush()}
   else if(a==='share'){const u=joinUrl();if(navigator.share)navigator.share({title:'狼人殺房間 '+NET.code,url:u}).catch(function(){});
     else if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){toast('連結已複製')},function(){toast(u)});else toast(u);return}
