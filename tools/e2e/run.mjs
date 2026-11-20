@@ -179,7 +179,16 @@ async function testOnline() {
 
   await gotoStep(h.page, '商人');
   ok(await until(() => hasPanel(P.merchant.page), '商人面板'), '黑市商人手機跳出行動面板');
-  await pact(P.merchant.page, '查驗'); await pact(P.merchant.page, seat.vil + '號');
+  const nextBtn = () => h.page.evaluate(() => { const b = document.querySelector('.foot .btn.pri'); return { dis: b.disabled, t: b.innerText }; });
+  await pact(P.merchant.page, seat.vil + '號'); await until(async () => (await state(h.page)).nt.tpid === seat.vil, '只選對象');
+  let nb = await nextBtn();
+  ok(nb.dis && nb.t.includes('還沒選要給的技能'), '商人只選了對象沒選技能：裁判不能按下一步', JSON.stringify(nb));
+  await pact(P.merchant.page, seat.vil + '號'); await until(async () => (await state(h.page)).nt.tpid == null, '取消對象');
+  ok(!(await nextBtn()).dis, '取消已選的對象（＝不交易）：可以下一步');
+  await pact(P.merchant.page, '查驗'); await until(async () => (await state(h.page)).nt.titem === 'crystal', '只選技能');
+  nb = await nextBtn();
+  ok(nb.dis && nb.t.includes('還沒選交易對象'), '只選了技能沒選對象：一樣不能下一步', JSON.stringify(nb));
+  await pact(P.merchant.page, seat.vil + '號');
   ok(await until(async () => { const n = (await state(h.page)).nt; return n.titem === 'crystal' && n.tpid === seat.vil; }, '交易'), '商人選的技能和對象出現在裁判台');
 
   await gotoStep(h.page, '女巫');

@@ -636,6 +636,8 @@ function vNight(){const steps=nightSteps(),i=Math.min(S.step,steps.length-1),st=
         +pick('tpid',a.filter(p=>p.id!==m.id),{sel:n.tpid});
       if(n.tpid!=null&&n.titem)h+=isWolf(P(n.tpid))?'<p class="note w">'+n.tpid+'號是狼人'+(P(n.tpid).role==='wolfyb'&&!S.yb?'（未覺醒的狼弟也算）':'')+'：技能失效，'+(fail==='wolf'?'該狼人今晚出局。':'黑市商人天亮時出局，對方不會暴露。')+'不要讓任何人看出來。</p>'
         :'<p class="note">交易成立：'+n.tpid+'號成為幸運兒，獲得'+ITEM[n.titem]+'，'+(n.titem==='gun'?'明天白天起出局時可開槍':'明晚起可用')+'。天亮前會提醒你單獨叫他起來確認。</p>';
+      else if(n.tpid!=null||n.titem){lock=true;lockMsg=n.titem?'還沒選交易對象':'還沒選要給的技能';
+        h+='<p class="note w">只選了一半：'+(n.titem?'選了'+ITEM[n.titem]+'，但還沒選對象。':'選了 '+n.tpid+'號，但還沒選要給他什麼技能。')+'補選另一半，或把已選的再點一次取消（＝今晚不交易），才能下一步。</p>'}
       else h+='<p class="note">技能和對象都選了才算交易；不選＝今晚不交易。整局只能交易一次。</p>'}
     h+='<p class="say">好的，我已確認。黑市商人請閉眼。</p>'}
   else if(st==='lnote'){const tr=n.tpid!=null&&n.titem,okT=tr&&!isWolf(P(n.tpid));h='<h2>新幸運兒</h2>';
