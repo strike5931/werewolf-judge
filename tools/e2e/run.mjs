@@ -128,13 +128,19 @@ async function testPhone() {
   ok(await wolf.page.evaluate(() => getComputedStyle(document.querySelector('.pinfo')).visibility) === 'hidden', '牌預設背面朝上，角色說明隱藏');
   await wolf.page.click('.stage3d');
   ok(await until(() => wolf.page.evaluate(() => getComputedStyle(document.querySelector('.pinfo')).visibility === 'visible'), '翻面'), '點一下卡片翻到正面，顯示角色說明');
+  const faceUp = pl => pl.page.evaluate(() => getComputedStyle(document.querySelector('.pinfo')).visibility === 'visible');
+  await sleep(10800);
+  ok(!(await faceUp(wolf)), '牌翻開 10 秒後自動蓋回');
   await gotoStep(h.page, '狼人'); await sleep(500);
   ok(!(await hasPanel(wolf.page)) && await pacts(wolf.page) === 0, '輪到狼人時，狼人手機沒有出現選項');
   ok(!(await text(wolf.page)).includes('夜晚進行中'), '手機不顯示目前輪到哪個角色');
   const victim = S0.players.find(p => p.role === 'villager').id;
   await act(h.page, 'kill', victim); ok((await state(h.page)).nt.kill === victim, '裁判在裁判台點選刀口');
-  await gotoStep(h.page, '天亮'); await act(h.page, 'dawn');
+  await gotoStep(h.page, '天亮');
+  await seer.page.click('.stage3d'); await until(() => faceUp(seer), '翻開');
+  await act(h.page, 'dawn');
   ok(await until(async () => (await text(seer.page)).includes('第 1 天'), '天亮'), '天亮後玩家手機切到「第 1 天」');
+  ok(await until(async () => !(await faceUp(seer)), '換階段蓋牌', 3000), '換階段時，翻開的牌馬上蓋回');
   ok(!(await state(h.page)).players[victim - 1].alive, '結算正確：被刀的人出局');
   await witch.page.close(); await sleep(4000);
   ok(!(await h.page.$('.veil.pz')), '現場沒牌：有人離線不會暫停遊戲');
@@ -192,6 +198,9 @@ async function testOnline() {
 
   await gotoStep(h.page, '獵人');
   ok(await until(async () => (await text(P.hunter.page)).includes('可以開槍'), '獵人狀態'), '獵人手機顯示「可以開槍」');
+  await gotoStep(h.page, '新幸運兒');
+  const lt = await text(h.page);
+  ok(lt.includes(seat.vil + '號') && lt.includes('輕拍') && lt.includes('查驗'), '第一夜獵人之後有「新幸運兒」步驟，提示幾號、給什麼技能');
   await gotoStep(h.page, '天亮'); await act(h.page, 'dawn');
   let S = await state(h.page);
   ok(S.phase === 'day' && S.players.every(p => p.alive), '第 1 夜結算：解藥救回，平安夜');
@@ -230,6 +239,7 @@ async function testOnline() {
   ok(await until(async () => (await text(P.vil.page)).includes(seat.merchant + '號是好人'), '幸運兒查驗'), '幸運兒用交易來的查驗，看到結果');
   await gotoStep(h.page, '獵人');
   ok(await until(async () => (await text(P.hunter.page)).includes('可以開槍'), '獵人'), '獵人排在最後，顯示開槍狀態');
+  ok(!(await h.page.evaluate(() => [...document.querySelectorAll('.steps li')].map(e => e.innerText))).includes('新幸運兒'), '交易過之後，「新幸運兒」步驟不再出現');
   await gotoStep(h.page, '天亮'); await act(h.page, 'dawn');
   S = await state(h.page);
   ok(!S.players[v2 - 1].alive && !S.players[seat.wolf - 1].alive && S.players[seat.wolf - 1].death.c === '毒殺', '第 2 夜結算：被刀的平民、被毒的狼人出局');

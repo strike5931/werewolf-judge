@@ -55,6 +55,8 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .chip.dead .av{filter:grayscale(1);opacity:.45}
 .av.av-back{background-size:cover;background-position:center;border-radius:5px;width:1.3rem;margin:0 .225rem}
 .seg .btn{flex:1 1 0}
+.lk{background:none;border:0;padding:0 2px;color:var(--moon);text-decoration:underline;font:inherit}
+.lk:disabled{color:var(--muted);text-decoration:none}
 .roomno{font-size:3rem;letter-spacing:.25em;text-indent:.25em}
 .qr{background:#fff;padding:8px;border-radius:12px;width:min(58vw,13rem);margin:0 auto}
 .qr svg{display:block;width:100%;height:auto}
@@ -427,6 +429,8 @@ function nightSteps(){const c=S.cfg.roles,s=['close'];
   if(c.merchant&&S.round>1)s.push('lucky');
   /* 獵人永遠排最後：所有毒都下完了，才告訴他能不能開槍 */
   if(c.hunter)s.push('hunter');
+  /* 還沒交易過的每一夜：獵人之後留一步，提醒裁判今晚有沒有新的幸運兒要單獨叫起來 */
+  if(c.merchant&&!S.traded)s.push('lnote');
   if(S.round===1&&(c.idiot||c.knight))s.push('ident');
   s.push('dawn');return s}
 const IDENT={bros:['wolfbro','wolfyb'],guard:['guard'],wolf:['wolf','wolfking','whitewolf','beauty'],witch:['witch'],seer:['seer'],merchant:['merchant'],hunter:['hunter'],ident:['idiot','knight']};
@@ -499,7 +503,7 @@ function statLine(){const a=alive(),c=S.cfg.roles,x=[];
   return '<div class="stat">'+x.map(s=>'<span>'+s+'</span>').join('')+'</div>'}
 const ICON={moon:'<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>',
   sun:'<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>'};
-const STEPN={bros:'兄弟',awake:'覺醒刀',merchant:'商人',lucky:'幸運兒',close:'入夜',guard:'守衛',wolf:'狼人',beauty:'狼美人',witch:'女巫',seer:'預言家',hunter:'獵人',ident:'確認',dawn:'天亮'};
+const STEPN={bros:'兄弟',awake:'覺醒刀',merchant:'商人',lucky:'幸運兒',lnote:'新幸運兒',close:'入夜',guard:'守衛',wolf:'狼人',beauty:'狼美人',witch:'女巫',seer:'預言家',hunter:'獵人',ident:'確認',dawn:'天亮'};
 function foot(h){return '<div class="foot"><div class="row">'+h+'</div></div>'}
 function bar(title,sub){const g=S.phase!=='setup';
   return '<header class="bar"><h1>'+(ICON[sub]?'<span class="orb">'+ICON[sub]+'</span>':'')+'<span class="ttl">'+title+'</span></h1>'
@@ -544,12 +548,12 @@ function vAssign(){const c=S.cfg.roles,un=S.players.filter(p=>!p.role).length;
   const restVil=un>0&&c.villager-cnt('villager')===un&&ks.every(k=>k==='villager'||cnt(k)===c[k]);
   const over=Object.keys(ROLES).some(k=>cnt(k)>c[k]);
   return bar('座位與發牌')
-  +'<section class="card"><h2>兩種發牌方式</h2>'
-  +'<p class="note"><b>用實體牌：</b>直接開始。第一夜各角色睜眼時，點座位記錄身份即可。</p>'
-  +'<p class="note"><b>用手機發牌：</b>按「隨機發牌」，再用「傳手機看牌」讓每位玩家輪流看自己的身份。</p>'
-  +'<p class="note"><b>連線發牌：</b>開房間讓每個人用自己的手機加入、選座位，按「隨機發牌」後發到各自手機上看。</p>'
-  +'<div class="row"><button class="btn" data-a="deal">隨機發牌</button><button class="btn" data-a="viewStart"'+(un?' disabled':'')+'>傳手機看牌</button><button class="btn sm" data-a="clearRoles">清空身份</button></div>'
-  +'<div class="row"><button class="btn'+(NET.mode==='host'?' sel':'')+'" data-a="open" data-p="room">'+(NET.mode==='host'?'連線房間 '+NET.code+'（已入座 '+Object.keys(owners()).length+'／'+S.players.length+'）':'連線發牌：開房間')+'</button></div></section>'
+  +'<section class="card"><h2>發牌</h2>'
+  +'<p class="note"><b>現場有牌：</b>直接開始。第一夜各角色睜眼時，點座位記錄身份即可。</p>'
+  +'<p class="note"><b>現場沒牌、線上玩：</b>開房間讓每個人用自己的手機加入、選座位，按「隨機發牌」後開始，牌會出現在各自手機上。</p>'
+  +'<div class="row"><button class="btn" data-a="deal">隨機發牌</button><button class="btn sm" data-a="clearRoles">清空身份</button></div>'
+  +'<div class="row"><button class="btn'+(NET.mode==='host'?' sel':'')+'" data-a="open" data-p="room">'+(NET.mode==='host'?'連線房間 '+NET.code+'（已入座 '+Object.keys(owners()).length+'／'+S.players.length+'）':'連線發牌：開房間')+'</button></div>'
+  +'<p class="note">備用：房間連不上、或有人沒手機時，先「隨機發牌」，再用這支手機<button class="lk" data-a="viewStart"'+(un?' disabled':'')+'>傳手機看牌</button>，每個人輪流看自己的身份。</p></section>'
   +'<section class="card"><h2>手動記錄身份<small>已記 '+(S.players.length-un)+'／'+S.players.length+'</small></h2>'
   +'<p class="note">'+(S.brush?'正在指定<b>'+ROLES[S.brush].n+'</b>：連續點座位即可，點錯再點一次取消。':'先點角色再連續點座位最快；也可以直接點座位，從跳出的選單挑身份。')+'</p>'
   +'<div class="roles">'+ks.map(k=>roleBtn(k,'brush',k,{sel:S.brush===k})).join('')+'</div>'
@@ -621,6 +625,11 @@ function vNight(){const steps=nightSteps(),i=Math.min(S.step,steps.length-1),st=
         :'<p class="note">交易成立：'+n.tpid+'號成為幸運兒，獲得'+ITEM[n.titem]+'，'+(n.titem==='gun'?'明天白天起出局時可開槍':'明晚起可用')+'。天亮前會提醒你單獨叫他起來確認。</p>';
       else h+='<p class="note">技能和對象都選了才算交易；不選＝今晚不交易。整局只能交易一次。</p>'}
     h+='<p class="say">好的，我已確認。黑市商人請閉眼。</p>'}
+  else if(st==='lnote'){const tr=n.tpid!=null&&n.titem,okT=tr&&!isWolf(P(n.tpid));h='<h2>新幸運兒</h2>';
+    if(okT)h+='<p class="say">天亮了……等一下，請所有人保持閉眼狀態！</p><div class="big">'+n.tpid+'號<small>走到他面前，輕拍肩膀示意他睜眼</small></div>'
+      +'<p class="say">獲得黑市商人交易的玩家請睜眼。你獲得了來自黑市商人的技能，這項技能是——（比 '+gesture(n.titem)+' 號手勢：'+ITEM[n.titem]+'）。請確認，請閉眼。</p>'
+      +'<p class="note">'+(n.titem==='gun'?'獵槍明天白天起出局時可開。':'這項技能明晚起才能用。')+(playMode()==='online'&&NET.mode==='host'?'線上玩時，天亮結算後他的手機也會收到通知。':'')+'</p>';
+    else h+='<p class="note w">'+(tr?'今晚的交易對象是狼人，交易失敗，沒有新的幸運兒。':'今晚沒有交易，沒有新的幸運兒。')+'不用叫人起來，直接下一步。</p>'}
   else if(st==='lucky'){const L=S.lucky,lp=L&&P(L.pid),can=L&&lp.alive&&L.r<S.round&&!L.used&&L.item!=='gun',gun=L&&lp.alive&&L.r<S.round&&!L.used&&L.item==='gun';
     h='<h2>幸運兒</h2><p class="say">獲得黑市商人技能的玩家請睜眼。今晚是否要使用你的技能？請比出目標號碼。</p>';
     if(gun){const ok=n.poison!==L.pid;h+='<p class="note">幸運兒是 '+L.pid+'號，持有獵槍。照樣叫他睜眼，比手勢告訴他開槍狀態。</p><div class="big '+(ok?'good':'evil')+'">'+(ok?'可以開槍':'不能開槍')+'<small>手勢：'+(ok?'拇指向上':'拇指向下（今晚被毒）')+'</small></div><p class="note">獵槍晚上不能開：白天被放逐或夜裡被刀，出局當下才開；被毒不能開。</p>'}
@@ -642,8 +651,7 @@ function vNight(){const steps=nightSteps(),i=Math.min(S.step,steps.length-1),st=
     if(S.cfg.roles.merchant)li.push('黑市商人：'+(tr?'拿'+ITEM[n.titem]+'與 '+n.tpid+'號交易'+(isWolf(P(n.tpid))?'（對象是狼人，失敗）':'（成立）'):'未交易'));
     if(n.lcheck!=null)li.push('幸運兒：驗 '+n.lcheck+'號');
     if(n.lpoison!=null)li.push('幸運兒：毒 '+n.lpoison+'號');
-    h='<h2>夜晚結算</h2><ul class="cheat">'+li.map(x=>'<li>'+x+'</li>').join('')+'</ul><p class="note">確認無誤後結算。還沒念「天亮了」之前，先別讓玩家睜眼。</p>'+(S.cfg.roles.merchant?(tr&&!isWolf(P(n.tpid))?'<p class="say">天亮了……等一下，請所有人保持閉眼狀態！</p><p class="note w">走到 '+n.tpid+'號面前，輕拍肩膀示意他睜眼。</p><p class="say">獲得黑市商人交易的玩家請睜眼。你獲得了來自黑市商人的技能，這項技能是——（比 '+gesture(n.titem)+' 號手勢：'+ITEM[n.titem]+'）。請確認，請閉眼。</p>'
-      :'<p class="note w">今晚沒有新的幸運兒，不用叫人起來。</p>'):'')}
+    h='<h2>夜晚結算</h2><ul class="cheat">'+li.map(x=>'<li>'+x+'</li>').join('')+'</ul><p class="note">確認無誤後結算。還沒念「天亮了」之前，先別讓玩家睜眼。</p>'}
   const hasGrid=h.indexOf('class="board"')>=0;
   return bar('第 '+S.round+' 夜','moon')
     +'<ol class="steps">'+steps.map((x,j)=>'<li class="'+(j<i?'done':j===i?'on':'')+'"'+(j===i?' aria-current="step"':'')+'>'+STEPN[x]+'</li>').join('')+'</ol>'
@@ -749,7 +757,7 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
       +'<li><b>白痴：</b>被放逐翻牌免死，之後不能投票但可發言；夜晚被刀、被毒照樣死。</li>'
       +'<li><b>騎士：</b>白天發言階段可翻牌決鬥一次。對方是狼則狼死並立刻入夜，否則騎士死。</li>'
       +'<li><b>狼兄弟：</b>第一夜先互認。狼弟覺醒前不跟狼人睜眼、被驗是好人；狼兄一出局狼弟就覺醒：當晚起跟狼人一起睜眼、被驗是狼人，並獲得額外一刀（預設整局一次、可保留）。兩刀同一人時解藥與守衛都救不了。狼兄不能自爆。</li>'
-      +'<li><b>黑市商人：</b>整局交易一次。交易到狼人（含未覺醒的狼弟）則交易失敗、商人出局。手勢 1 毒藥、2 獵槍、3 查驗。交易成立就在「天亮了……等一下」時輕拍幸運兒，單獨叫他睜眼確認技能。幸運兒隔天才能用技能；順序固定：狼人→商人→女巫→預言家→幸運兒→獵人（獵人永遠最後，所有毒都下完才告訴他能不能開槍），交易來的技能一律在幸運兒階段單獨睜眼使用（預言家拿到查驗、女巫拿到毒藥也一樣：先在自己那一步用完閉眼，幸運兒階段再睜眼用一次）。拿到獵槍的人在幸運兒階段睜眼看開槍手勢，晚上不能開；白天被放逐或被刀出局時當下開槍，被毒不能開。獵人拿到獵槍則有兩把槍。商人每晚都要叫，用過了就假裝詢問停頓 5 到 10 秒。</li>'
+      +'<li><b>黑市商人：</b>整局交易一次。交易到狼人（含未覺醒的狼弟）則交易失敗、商人出局。手勢 1 毒藥、2 獵槍、3 查驗。交易成立就在「天亮了……等一下」時輕拍幸運兒，單獨叫他睜眼確認技能。幸運兒隔天才能用技能；順序固定：狼人→商人→女巫→預言家→幸運兒→獵人（獵人永遠最後，所有毒都下完才告訴他能不能開槍），交易來的技能一律在幸運兒階段單獨睜眼使用（預言家拿到查驗、女巫拿到毒藥也一樣：先在自己那一步用完閉眼，幸運兒階段再睜眼用一次）。拿到獵槍的人在幸運兒階段睜眼看開槍手勢，晚上不能開；白天被放逐或被刀出局時當下開槍，被毒不能開。獵人拿到獵槍則有兩把槍。商人每晚都要叫，用過了就假裝詢問停頓 5 到 10 秒。還沒交易過的每一夜，獵人之後有一步「新幸運兒」提醒你今晚要不要叫人。</li>'
       +'<li><b>勝負：</b>每次有人出局後都檢查一次，工具會在達成條件時提示。</li>'
       +'<li><b>開局前先講清楚桌規：</b>自救、同守同救、屠邊或屠城、平票處理、是否可以貼臉／看牌發誓。</li>'
       +'</ul><button class="btn pri" data-a="close">關閉</button>'}
@@ -804,7 +812,13 @@ const faceUp=()=>Math.abs(Math.round(tilt.base/180))%2===0;
 function tiltEnd(e){const d=tilt.drag;if(!d)return;tilt.drag=null;
   const tap=e&&e.type==='pointerup'&&Math.abs(e.clientX-d.x)<7&&Math.abs(e.clientY-d.y)<7;
   tilt.base=tilt.ry=tap?Math.round(d.ry/180)*180+180:Math.round(tilt.ry/180)*180;tilt.rx=0;tilt.o=null;tiltApply(true);
-  const w=document.querySelector('.pwrap');if(w)w.classList.toggle('show',faceUp())}
+  const w=document.querySelector('.pwrap');if(w)w.classList.toggle('show',faceUp());coverArm()}
+/* 玩家自己的牌：翻到正面 10 秒後自動蓋回，換階段或切走畫面時也馬上蓋回，免得忘了蓋被旁邊看到 */
+let coverT=0;const COVER=10000;
+function cover(){clearTimeout(coverT);if(NET.mode!=='player'||faceUp()===false)return;tilt.drag=null;tilt.base=tilt.ry=Math.round(tilt.base/180)*180+180;tilt.rx=0;tilt.o=null;tiltApply(true);
+  const w=document.querySelector('.pwrap');if(w)w.classList.remove('show')}
+function coverArm(){clearTimeout(coverT);if(NET.mode==='player'&&faceUp())coverT=setTimeout(cover,COVER)}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState!=='visible')cover()});
 document.addEventListener('pointerup',tiltEnd);document.addEventListener('pointercancel',tiltEnd);
 function onOrient(e){if(tilt.drag||e.beta==null||!document.querySelector('.c3d'))return;
   if(!tilt.o)tilt.o={b:e.beta,g:e.gamma};
@@ -1104,6 +1118,7 @@ function playerConnect(){netKill();netSt='連線中…';
       cn.on('open',function(){if(peer!==my)return;netSt='ok';lastPong=Date.now();cn.send({t:'hello',token:NET.token,name:NET.name});soft()});
       cn.on('data',function(d){if(peer!==my)return;lastPong=Date.now();if(d&&d.t==='pong')return;const v=pvClean(d);if(!v)return;const o=PV;PV=v;netSt='ok';
         if(v.role!==(o&&o.role)){tilt.rx=0;tilt.ry=tilt.base=180;tilt.o=null}
+        else if(o&&(v.pk!==o.pk||v.ph!==o.ph))cover();
         if(o&&v.pz.length&&!o.pz.length)announce('','遊戲暫停','等 '+v.pz.map(x=>x+'號').join('、')+' 重新連線');
         else if(o&&!v.pz.length&&o.pz.length)announce('','遊戲繼續','');
         else if(o){if(v.pk!==o.pk||v.ph!==o.ph){if(v.pk==='night')announce('moon','天黑請閉眼',v.ph);else if(v.pk==='day')announce('sun','天亮了',v.ph);else if(v.pk==='over')announce('','遊戲結束',v.over)}
@@ -1135,7 +1150,7 @@ function vPlayer(){const hd=t=>'<header class="bar"><h1>'+(PV&&PV.pk&&ICON[PV.pk
       +(v.alive===false?'<p class="note w">你已出局。</p>':'')+(v.lucky?'<p class="note on">你是幸運兒：持有交易來的'+ITEM[v.lucky]+'。</p>':'')+(v.over?'<p class="say">'+esc(v.over)+'</p>':'')
       +'<div class="pwrap'+(faceUp()?' show':'')+'"><div class="stage3d"><div class="c3d" style="transform:rotateX('+tilt.rx.toFixed(2)+'deg) rotateY('+tilt.ry.toFixed(2)+'deg)"><i class="cf av-'+v.role+'"><u class="gl"></u></i><i class="cb av-back"></i></div></div>'
       +'<div class="pinfo"><h2 class="c-'+r.t+'">'+r.n+'<small class="ct">'+TEAM[r.t]+'</small></h2><p class="say" style="margin:0">'+FX[v.role]+'</p></div></div>'
-      +'<p class="note" style="text-align:center">點一下卡片翻面，拖曳可以旋轉。看完記得翻回牌背，確認旁邊沒人看得到螢幕。</p>'
+      +'<p class="note" style="text-align:center">點一下卡片翻面，拖曳可以旋轉。正面 10 秒後會自動蓋回，換階段時也會；翻開前確認旁邊沒人看得到螢幕。</p>'
       +(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'&&!motionOn?'<div class="row"><button class="btn sm" data-m="motion">開啟手機晃動連動</button></div>':'')+'</section>'}
   if(v.seat&&v.pk&&!v.role)return hd('房間 '+NET.code)+st+'<section class="card"><h2>'+v.seat+'號'+(v.name?'・'+esc(v.name):'')+'<small>'+esc(v.ph)+'</small></h2>'
     +(v.alive===false?'<p class="note w">你已出局。</p>':'')+(v.over?'<p class="say">'+esc(v.over)+'</p>':'')
