@@ -65,8 +65,13 @@ ROLES = {
                      "a witch in a wide-brimmed pointed hat and a layered travelling dress, long braided hair, holding up one small potion bottle while a second bottle hangs at her belt."),
     "hunter":   card(DAY, FACE_HUMAN, "forest green with touches of gold", "pine sprigs, arrows, small stars, falling leaves",
                      "a rugged male hunter in a long travelling coat and wide-brimmed hat, short tousled hair, holding a long rifle upright, cloak blowing to one side."),
+    # 現用的守衛圖是候選 K：以候選 D 為底、把盾牌改成立在地上用手扶著（J），再修掉右側燈籠鍊子歪掉的瑕疵（見 tools/gen_poses.py）。這裡的描述照那張圖寫，重產時姿勢會接近但不會一模一樣
     "guard":    card(DAY, FACE_HUMAN, "navy blue with touches of gold", "small shields, lanterns, oak leaves, chain links",
-                     "a steadfast guardian in light plate armour and a long tabard, short neat hair, bracing a large kite shield in front and holding a spear upright, cape billowing."),
+                     "a steadfast guardian in light plate armour with a fur collar and a long tabard, short neat hair, standing guard side-on facing right with his weight on the back foot: "
+                     "one hand holds an extremely long lance, far longer than he is tall, slanting across the whole card from the lower-left corner to the upper-right corner with both ends past the frame; "
+                     "the long slender leaf-shaped blade with small wing-like guards is at the upper-right end and a pointed butt spike at the lower-left end. "
+                     "A kite shield rests on the ground beside his front leg, standing on its pointed bottom and leaning slightly against his leg, turned at a three-quarter angle so it looks narrow, "
+                     "with his free hand resting on its top edge; a long cape streams out behind him in big sweeping shapes, head turned to look ahead."),
     "idiot":    card(DAY, FACE_HUMAN, "marigold orange with touches of gold", "juggling balls, playing cards, small bells, ribbons",
                      "a cheerful fool in a two-pointed jester's cap with bells and a patchwork tunic, balancing on one foot and tossing playing cards into the air."),
     "knight":   card(DAY, FACE_HUMAN, "dusty rose with touches of gold", "roses, crossed swords, small banners, laurel leaves",
@@ -91,11 +96,11 @@ ROLES = {
 }
 # 覺醒後的狼弟：拿產好的 wolfyb.png 當參考圖改畫，角色才會是同一隻
 EDITS = {
-    "wolfyb2": ("wolfyb", "Redraw this same card as the character's awakened, enraged form. Keep exactly the same flat paper-cut illustration style, the same black card, "
-                "the same frame, top band with medallions and blank bottom banner, and the same young slender pale-furred werewolf and cloak. "
-                "Changes: the hood is thrown back, he no longer hides his muzzle, his jaws are open in a snarl with fangs showing, fur bristling, one clawed hand raised, "
-                "his two eye shapes now glow bright crimson red, and the dominant hue shifts from lavender violet to a hotter violet with crimson accents. "
-                "The bottom banner stays completely blank. " + NO_TEXT),
+    "wolfyb2": ("wolfyb", "Redraw this same card as the character's awakening moment, in a completely new and much more dynamic pose. Keep exactly the same flat illustration style, the same black card, "
+                "the same frame, top band with medallions and blank bottom banner, and the same young slender pale-furred werewolf. "
+                "New pose: he throws his head back and howls at the sky with jaws wide open and fangs showing, chest pushed forward, both arms flung out and back with claws spread, "
+                "his hooded cloak ripping apart and flying off behind him in several large torn pieces, tail lashing, fur bristling. Strong diagonal silhouette, not a straight standing pose. "
+                "His two eye shapes glow bright crimson red, and the dominant hue shifts from lavender violet to a hotter violet with crimson accents. The bottom banner stays completely blank. " + NO_TEXT),
 }
 
 # 介面用圖：一律拿產好的牌當參考圖（走 images/edits），畫法才會和牌面是同一套：

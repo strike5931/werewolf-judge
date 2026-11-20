@@ -19,6 +19,51 @@ HEAD = """<!doctype html>
 <style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
 """
 art = {}
+live = {}  # 動態牌面的設定（羽毛起點等），寫進頁面的 LIVE
+try:
+    specs = json.load(open(os.path.join(ROOT, "tools", "live_specs.json"), encoding="utf-8"))
+except Exception:
+    specs = {}
+
+def sway_mask(blobs, pins=(), W=180, H=270):
+    """把「哪些部位會飄」畫成一張小圖給著色器用。每個像素三個值：
+    R＝擺動幅度（根部 0，越往末端越大）、G＝相位（讓波從根部往末端傳，各部位也不同步）、B＝擺動方向（和部位走向垂直）。"""
+    import io, math
+    from PIL import Image
+    im = Image.new("RGB", (W, H)); px = im.load()
+    for y in range(H):
+        for x in range(W):
+            best = (0.0, 0.0, 0.0); second = 0.0
+            for b in blobs:
+                rx, ry = b["root"][0] / 100 * W, b["root"][1] / 100 * H
+                tx, ty = b["tip"][0] / 100 * W, b["tip"][1] / 100 * H
+                ax, ay = tx - rx, ty - ry; L2 = ax * ax + ay * ay
+                t = ((x - rx) * ax + (y - ry) * ay) / L2
+                if t <= 0 or t > 1.25:
+                    continue
+                tc = min(t, 1.0); d = math.hypot(x - (rx + ax * tc), y - (ry + ay * tc)); r = b["r"] / 100 * W
+                if d >= r:
+                    continue
+                e = d / r; side = 1.0 if e < 0.55 else 1 - ((e - 0.55) / 0.45) ** 2 * (3 - 2 * ((e - 0.55) / 0.45)) if e < 1 else 0
+                w = b["amp"] * (tc ** 1.35) * side
+                if w > best[0]:
+                    ang = (math.atan2(ay, ax) + math.pi / 2) % math.pi
+                    second = best[0]; best = (w, b.get("phase", 0) * 0.5 + (1 - tc) * 0.42, ang / math.pi)
+                elif w > second:
+                    second = w
+            # 兩個部位重疊的地方，方向和相位會突然切換。用「最強減次強」當幅度，交界處剛好是 0，才不會撕裂
+            w = best[0] - second
+            # 不准動的地方（手、臉、手上的東西）：範圍內歸零，往外 1.7 倍半徑內漸漸放開
+            for p in pins:
+                ax, ay = p["from"][0] / 100 * W, p["from"][1] / 100 * H; bx, by = p["to"][0] / 100 * W, p["to"][1] / 100 * H
+                vx, vy = bx - ax, by - ay; L2 = vx * vx + vy * vy or 1
+                t = max(0.0, min(1.0, ((x - ax) * vx + (y - ay) * vy) / L2)); d = math.hypot(x - (ax + vx * t), y - (ay + vy * t)); r = p["r"] / 100 * W
+                if d < r * 1.7:
+                    k = 0.0 if d <= r else (d - r) / (r * 0.7)
+                    w *= k * k * (3 - 2 * k)
+            px[x, y] = (int(w * 255), int(best[1] * 255), int(best[2] * 255))
+    buf = io.BytesIO(); im.save(buf, "PNG", optimize=True)
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 ban = {}   # 每張牌底部橫幅的中心高度（%）與深淺，網頁疊角色名字時用
 
 def banner(png):
@@ -65,6 +110,45 @@ with tempfile.TemporaryDirectory() as tmp:
         if m:
             ban[role] = [m[0], 1 if m[1] else 0]
         print("%-10s %3d KB  橫幅 %s" % (role, len(raw) // 1024, m if m else "量不到，用預設位置"))
+    # 動態牌面的分層圖（tools/gen_layers.py 產的）：p_<角色> 是拿掉人物的空牌，f_<角色> 是去背的人物
+    for plate in sorted(glob.glob(os.path.join(ROOT, "art", "layers", "*_plate.png"))):
+        role = os.path.basename(plate)[:-10]; fig = plate[:-10] + "_fig.png"
+        if not os.path.exists(fig):
+            continue
+        try:
+            from PIL import Image
+            import io
+        except ImportError:
+            print("沒有 PIL，略過分層圖"); break
+        buf = io.BytesIO(); Image.open(plate).convert("RGB").resize((540, 810), Image.LANCZOS).save(buf, "JPEG", quality=64)
+        art["p_" + role] = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode(); kb = len(buf.getvalue()) // 1024
+        im = Image.open(fig).convert("RGBA").resize((540, 810), Image.LANCZOS)
+        # 人物的下襬在橫幅上緣之前淡出，才不會蓋住橫幅和上面的名字
+        top = (ban[role][0] - 3.4 if role in ban else 90.0) / 100 * 810; a = im.getchannel("A"); ap = a.load()
+        for y in range(int(top - 46), 810):
+            k = max(0.0, min(1.0, (top - y) / 46.0))
+            for x in range(540):
+                ap[x, y] = int(ap[x, y] * k)
+        im.putalpha(a); buf = io.BytesIO(); im.save(buf, "WEBP", quality=78, method=6)
+        art["f_" + role] = "data:image/webp;base64," + base64.b64encode(buf.getvalue()).decode()
+        print("%-10s 分層：空牌 %d KB、人物 %d KB" % (role, kb, len(buf.getvalue()) // 1024))
+        sp = specs.get(role)
+        if sp:
+            live[role] = {"feathers": 1 if sp.get("feathers") else 0}
+            if sp.get("sway"):
+                art["m_" + role] = sway_mask(sp["sway"], sp.get("pins", ()))
+    # 動態牌面飄落用的羽毛（tools/gen_layers.py --feather 產的），裁掉留白、縮小後存成 _feather
+    fp = os.path.join(ROOT, "art", "layers", "feather.png")
+    if os.path.exists(fp):
+        try:
+            from PIL import Image
+            import io
+            im = Image.open(fp).convert("RGBA"); im = im.crop(im.getbbox()); im.thumbnail((132, 132), Image.LANCZOS)
+            buf = io.BytesIO(); im.save(buf, "WEBP", quality=82, method=6)
+            art["_feather"] = "data:image/webp;base64," + base64.b64encode(buf.getvalue()).decode()
+            print("feather    %d KB" % (len(buf.getvalue()) // 1024))
+        except ImportError:
+            pass
     # 座位上的小徽章：每個角色一枚，存成 i_<角色>
     for png in sorted(glob.glob(os.path.join(ROOT, "art", "icons", "*.png"))):
         role = os.path.splitext(os.path.basename(png))[0]
@@ -95,6 +179,8 @@ s, n = re.subn(r"const ART=.*?;/\*ART\*/", lambda m: "const ART=" + json.dumps(a
 assert n == 1, "找不到 ART 標記"
 s, n = re.subn(r"const BAN=.*?;/\*BAN\*/", lambda m: "const BAN=" + json.dumps(ban, separators=(",", ":")) + ";/*BAN*/", s, count=1, flags=re.S)
 assert n == 1, "找不到 BAN 標記"
+s, n = re.subn(r"const LIVE=.*?;/\*LIVE\*/", lambda m: "const LIVE=" + json.dumps(live, separators=(",", ":")) + ";/*LIVE*/", s, count=1, flags=re.S)
+assert n == 1, "找不到 LIVE 標記"
 open(SRC, "w", encoding="utf-8").write(s)
 body = "\n".join(l for l in s.split("\n") if "claude:viewport-fit-sides" not in l)
 open(os.path.join(ROOT, "index.html"), "w", encoding="utf-8").write(HEAD + body + "\n</html>\n")
