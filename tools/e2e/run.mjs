@@ -131,6 +131,19 @@ async function testPhone() {
   const faceUp = pl => pl.page.evaluate(() => getComputedStyle(document.querySelector('.pinfo')).visibility === 'visible');
   await sleep(10800);
   ok(!(await faceUp(wolf)), '牌翻開 10 秒後自動蓋回');
+  ok(await wolf.page.evaluate(() => getComputedStyle(document.querySelector('.stage3d')).touchAction) === 'pan-y', '卡片區域允許上下滑動捲頁面');
+  const orient = (b, g) => wolf.page.evaluate(([b, g]) => window.dispatchEvent(Object.assign(new Event('deviceorientation'), { beta: b, gamma: g })), [b, g]);
+  const rx = () => wolf.page.evaluate(() => parseFloat((document.querySelector('.c3d').style.transform.match(/rotateX\(([-\d.]+)deg/) || [0, 0])[1]));
+  await orient(40, 0); await orient(55, 0);
+  ok(await rx() === 0, '晃動連動預設關閉：手機傾斜時卡片不動');
+  await wolf.page.click('[data-m="on"]'); await wolf.page.waitForSelector('[data-m="off"]');
+  await orient(40, 0); await orient(55, 0); const r1 = await rx();
+  ok(r1 !== 0, '開啟後卡片跟著手機傾斜', 'rx=' + r1);
+  await wolf.page.click('.stage3d'); await sleep(200); await orient(55, 0); const r2 = await rx();
+  ok(Math.abs(r2 - r1) < 0.01, '傾斜狀態下翻面，基準角度不會跑掉', 'before=' + r1 + ' after=' + r2);
+  await wolf.page.click('[data-m="off"]'); await wolf.page.waitForSelector('[data-m="on"]'); await orient(70, 20);
+  ok(await rx() === 0, '可以關閉晃動連動，關掉後卡片回正且不再跟著動');
+  await sleep(10800);
   await gotoStep(h.page, '狼人'); await sleep(500);
   ok(!(await hasPanel(wolf.page)) && await pacts(wolf.page) === 0, '輪到狼人時，狼人手機沒有出現選項');
   ok(!(await text(wolf.page)).includes('夜晚進行中'), '手機不顯示目前輪到哪個角色');
@@ -207,9 +220,10 @@ async function testOnline() {
 
   await gotoStep(h.page, '獵人');
   ok(await until(async () => (await text(P.hunter.page)).includes('可以開槍'), '獵人狀態'), '獵人手機顯示「可以開槍」');
-  await gotoStep(h.page, '新幸運兒');
+  await gotoStep(h.page, '獵人'); await act(h.page, 'next');
+  ok(await stepName(h.page) === '幸運兒', '還沒交易時，「幸運兒」排在獵人後面');
   const lt = await text(h.page);
-  ok(lt.includes(seat.vil + '號') && lt.includes('輕拍') && lt.includes('查驗'), '第一夜獵人之後有「新幸運兒」步驟，提示幾號、給什麼技能');
+  ok(lt.includes(seat.vil + '號') && lt.includes('輕拍') && lt.includes('查驗'), '第一夜的「幸運兒」步驟提示幾號、給什麼技能');
   await gotoStep(h.page, '天亮'); await act(h.page, 'dawn');
   let S = await state(h.page);
   ok(S.phase === 'day' && S.players.every(p => p.alive), '第 1 夜結算：解藥救回，平安夜');
@@ -248,7 +262,8 @@ async function testOnline() {
   ok(await until(async () => (await text(P.vil.page)).includes(seat.merchant + '號是好人'), '幸運兒查驗'), '幸運兒用交易來的查驗，看到結果');
   await gotoStep(h.page, '獵人');
   ok(await until(async () => (await text(P.hunter.page)).includes('可以開槍'), '獵人'), '獵人排在最後，顯示開槍狀態');
-  ok(!(await h.page.evaluate(() => [...document.querySelectorAll('.steps li')].map(e => e.innerText))).includes('新幸運兒'), '交易過之後，「新幸運兒」步驟不再出現');
+  const names = await h.page.evaluate(() => [...document.querySelectorAll('.steps li')].map(e => e.innerText));
+  ok(names.filter(x => x === '幸運兒').length === 1 && names.indexOf('幸運兒') < names.indexOf('獵人'), '交易過之後，「幸運兒」只有一個，排在獵人前面', names.join('>'));
   await gotoStep(h.page, '天亮'); await act(h.page, 'dawn');
   S = await state(h.page);
   ok(!S.players[v2 - 1].alive && !S.players[seat.wolf - 1].alive && S.players[seat.wolf - 1].death.c === '毒殺', '第 2 夜結算：被刀的平民、被毒的狼人出局');

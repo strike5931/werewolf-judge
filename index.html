@@ -102,7 +102,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .cg button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 4px 8px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);min-width:0}
 .cg i{display:block;width:100%;aspect-ratio:2/3;border-radius:8px;background-size:cover!important;background-position:center!important;filter:none}
 .cg b{font-size:.85rem}
-.stage3d{perspective:900px;display:flex;justify-content:center;padding:14px 0 6px;touch-action:none;-webkit-user-select:none;user-select:none;cursor:grab}
+.stage3d{perspective:900px;display:flex;justify-content:center;padding:14px 0 6px;touch-action:pan-y;-webkit-user-select:none;user-select:none;cursor:grab}
 .c3d{position:relative;width:min(56vw,13.5rem);aspect-ratio:2/3;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;will-change:transform}
 .c3d.rest{transition:transform .55s cubic-bezier(.2,1.3,.4,1)}
 .c3d i{position:absolute;inset:0;border-radius:14px;border:2px solid var(--line);background-size:cover!important;background-position:center!important;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 16px 40px rgba(0,0,0,.55);filter:none;overflow:hidden}
@@ -439,7 +439,8 @@ function nightSteps(){const c=S.cfg.roles,s=['close'];
   if(c.merchant)s.push('merchant');
   if(c.witch)s.push('witch');
   if(c.seer)s.push('seer');
-  if(c.merchant&&S.round>1)s.push('lucky');
+  /* 交易過之後才有人能用技能；還沒交易的夜晚改由獵人後面那一步（同樣叫幸運兒）提醒通知，兩步不會同時出現 */
+  if(c.merchant&&S.round>1&&S.traded)s.push('lucky');
   /* 獵人永遠排最後：所有毒都下完了，才告訴他能不能開槍 */
   if(c.hunter)s.push('hunter');
   /* 還沒交易過的每一夜：獵人之後留一步，提醒裁判今晚有沒有新的幸運兒要單獨叫起來 */
@@ -516,7 +517,7 @@ function statLine(){const a=alive(),c=S.cfg.roles,x=[];
   return '<div class="stat">'+x.map(s=>'<span>'+s+'</span>').join('')+'</div>'}
 const ICON={moon:'<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>',
   sun:'<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>'};
-const STEPN={bros:'兄弟',awake:'覺醒刀',merchant:'商人',lucky:'幸運兒',lnote:'新幸運兒',close:'入夜',guard:'守衛',wolf:'狼人',beauty:'狼美人',witch:'女巫',seer:'預言家',hunter:'獵人',ident:'確認',dawn:'天亮'};
+const STEPN={bros:'兄弟',awake:'覺醒刀',merchant:'商人',lucky:'幸運兒',lnote:'幸運兒',close:'入夜',guard:'守衛',wolf:'狼人',beauty:'狼美人',witch:'女巫',seer:'預言家',hunter:'獵人',ident:'確認',dawn:'天亮'};
 function foot(h){return '<div class="foot"><div class="row">'+h+'</div></div>'}
 function bar(title,sub){const g=S.phase!=='setup';
   return '<header class="bar"><h1>'+(ICON[sub]?'<span class="orb">'+ICON[sub]+'</span>':'')+'<span class="ttl">'+title+'</span></h1>'
@@ -640,7 +641,7 @@ function vNight(){const steps=nightSteps(),i=Math.min(S.step,steps.length-1),st=
         h+='<p class="note w">只選了一半：'+(n.titem?'選了'+ITEM[n.titem]+'，但還沒選對象。':'選了 '+n.tpid+'號，但還沒選要給他什麼技能。')+'補選另一半，或把已選的再點一次取消（＝今晚不交易），才能下一步。</p>'}
       else h+='<p class="note">技能和對象都選了才算交易；不選＝今晚不交易。整局只能交易一次。</p>'}
     h+='<p class="say">好的，我已確認。黑市商人請閉眼。</p>'}
-  else if(st==='lnote'){const tr=n.tpid!=null&&n.titem,okT=tr&&!isWolf(P(n.tpid));h='<h2>新幸運兒</h2>';
+  else if(st==='lnote'){const tr=n.tpid!=null&&n.titem,okT=tr&&!isWolf(P(n.tpid));h='<h2>幸運兒</h2>';
     if(okT)h+='<p class="say">天亮了……等一下，請所有人保持閉眼狀態！</p><div class="big">'+n.tpid+'號<small>走到他面前，輕拍肩膀示意他睜眼</small></div>'
       +'<p class="say">獲得黑市商人交易的玩家請睜眼。你獲得了來自黑市商人的技能，這項技能是——（比 '+gesture(n.titem)+' 號手勢：'+ITEM[n.titem]+'）。請確認，請閉眼。</p>'
       +'<p class="note">'+(n.titem==='gun'?'獵槍明天白天起出局時可開。':'這項技能明晚起才能用。')+(playMode()==='online'&&NET.mode==='host'?'線上玩時，天亮結算後他的手機也會收到通知。':'')+'</p>';
@@ -753,7 +754,7 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
   }else if(s.type==='card'){const ks=CARDS(),i=ks.indexOf(s.k),r=RI(s.k),ios=typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function';
     h='<div class="stage3d"><div class="c3d"><i class="cf av-'+s.k+'"><u class="gl"></u></i><i class="cb av-back"></i></div></div>'
       +'<h2 class="c-'+r.t+'" style="text-align:center">'+r.n+'<small class="ct">'+TEAM[r.t]+'</small></h2><p class="say" style="margin:0">'+FX[s.k]+'</p>'
-      +'<p class="note">點一下翻面，拖曳可以旋轉。'+(ios&&!motionOn?'</p><button class="btn sm" data-m="motion">開啟手機晃動連動</button>':motionOn?'晃動手機，卡片會跟著傾斜。</p>':'</p>')
+      +'<p class="note">點一下翻面，左右拖曳可以旋轉。</p>'+motionBtn()
       +'<div class="row"><button class="btn" data-a="card" data-p="'+ks[(i+ks.length-1)%ks.length]+'">‹ 上一張</button><button class="btn" data-a="open" data-p="cards">圖鑑</button><button class="btn" data-a="card" data-p="'+ks[(i+1)%ks.length]+'">下一張 ›</button></div>';
   }else if(s.type==='tests'){h='<h2>快速測試</h2><p class="note">直接跳到某個情境的關鍵步驟，實際按一次確認流程對不對。原本的局會保留，測完按「結束測試」就回去。</p>'+(S.test?'<button class="btn pri" data-a="endTest">結束測試，回到原本的局</button>':'')
       +TESTS.map((t,i)=>'<button class="btn" data-a="runTest" data-p="'+i+'" style="text-align:left;height:auto;padding:10px 14px"><b>'+t.n+'</b><span class="note" style="display:block;font-weight:400;margin-top:4px">'+t.d+'</span></button>').join('')
@@ -772,7 +773,7 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
       +'<li><b>白痴：</b>被放逐翻牌免死，之後不能投票但可發言；夜晚被刀、被毒照樣死。</li>'
       +'<li><b>騎士：</b>白天發言階段可翻牌決鬥一次。對方是狼則狼死並立刻入夜，否則騎士死。</li>'
       +'<li><b>狼兄弟：</b>第一夜先互認。狼弟覺醒前不跟狼人睜眼、被驗是好人；狼兄一出局狼弟就覺醒：當晚起跟狼人一起睜眼、被驗是狼人，並獲得額外一刀（預設整局一次、可保留）。兩刀同一人時解藥與守衛都救不了。狼兄不能自爆。</li>'
-      +'<li><b>黑市商人：</b>整局交易一次。交易到狼人（含未覺醒的狼弟）則交易失敗、商人出局。手勢 1 毒藥、2 獵槍、3 查驗。交易成立就在「天亮了……等一下」時輕拍幸運兒，單獨叫他睜眼確認技能。幸運兒隔天才能用技能；順序固定：狼人→商人→女巫→預言家→幸運兒→獵人（獵人永遠最後，所有毒都下完才告訴他能不能開槍），交易來的技能一律在幸運兒階段單獨睜眼使用（預言家拿到查驗、女巫拿到毒藥也一樣：先在自己那一步用完閉眼，幸運兒階段再睜眼用一次）。拿到獵槍的人在幸運兒階段睜眼看開槍手勢，晚上不能開；白天被放逐或被刀出局時當下開槍，被毒不能開。獵人拿到獵槍則有兩把槍。商人每晚都要叫，用過了就假裝詢問停頓 5 到 10 秒。還沒交易過的每一夜，獵人之後有一步「新幸運兒」提醒你今晚要不要叫人。</li>'
+      +'<li><b>黑市商人：</b>整局交易一次。交易到狼人（含未覺醒的狼弟）則交易失敗、商人出局。手勢 1 毒藥、2 獵槍、3 查驗。交易成立就在「天亮了……等一下」時輕拍幸運兒，單獨叫他睜眼確認技能。幸運兒隔天才能用技能；順序固定：狼人→商人→女巫→預言家→幸運兒→獵人（獵人永遠最後，所有毒都下完才告訴他能不能開槍），交易來的技能一律在幸運兒階段單獨睜眼使用（預言家拿到查驗、女巫拿到毒藥也一樣：先在自己那一步用完閉眼，幸運兒階段再睜眼用一次）。拿到獵槍的人在幸運兒階段睜眼看開槍手勢，晚上不能開；白天被放逐或被刀出局時當下開槍，被毒不能開。獵人拿到獵槍則有兩把槍。商人每晚都要叫，用過了就假裝詢問停頓 5 到 10 秒。還沒交易過的每一夜，獵人之後的「幸運兒」是提醒你今晚有沒有新的幸運兒要叫起來；交易過之後，「幸運兒」改排在獵人前面，是讓他使用技能。</li>'
       +'<li><b>勝負：</b>每次有人出局後都檢查一次，工具會在達成條件時提示。</li>'
       +'<li><b>開局前先講清楚桌規：</b>自救、同守同救、屠邊或屠城、平票處理、是否可以貼臉／看牌發誓。</li>'
       +'</ul><button class="btn pri" data-a="close">關閉</button>'}
@@ -820,17 +821,18 @@ function tiltApply(rest){const c=document.querySelector('.c3d');if(!c)return;c.c
   c.style.transform='rotateX('+tilt.rx.toFixed(2)+'deg) rotateY('+tilt.ry.toFixed(2)+'deg)';
   const d=tilt.ry-tilt.base;c.style.setProperty('--gx',(-d*1.6).toFixed(1)+'%');c.style.setProperty('--gy',(-25+tilt.rx*1.6).toFixed(1)+'%')}
 document.addEventListener('pointerdown',e=>{const st=e.target.closest&&e.target.closest('.stage3d');if(!st)return;
-  tilt.drag={x:e.clientX,y:e.clientY,rx:tilt.rx,ry:tilt.ry};try{st.setPointerCapture(e.pointerId)}catch(_){}});
+  /* 觸控時只管左右：上下滑交給瀏覽器捲動頁面（touch-action:pan-y），卡片不跟著亂轉 */
+  tilt.drag={x:e.clientX,y:e.clientY,rx:tilt.rx,ry:tilt.ry,touch:e.pointerType==='touch'}});
 document.addEventListener('pointermove',e=>{const d=tilt.drag;if(!d)return;
-  tilt.ry=d.ry+(e.clientX-d.x)*.7;tilt.rx=Math.max(-40,Math.min(40,d.rx-(e.clientY-d.y)*.45));tiltApply(false)});
+  tilt.ry=d.ry+(e.clientX-d.x)*.7;if(!d.touch)tilt.rx=Math.max(-40,Math.min(40,d.rx-(e.clientY-d.y)*.45));tiltApply(false)});
 const faceUp=()=>Math.abs(Math.round(tilt.base/180))%2===0;
 function tiltEnd(e){const d=tilt.drag;if(!d)return;tilt.drag=null;
   const tap=e&&e.type==='pointerup'&&Math.abs(e.clientX-d.x)<7&&Math.abs(e.clientY-d.y)<7;
-  tilt.base=tilt.ry=tap?Math.round(d.ry/180)*180+180:Math.round(tilt.ry/180)*180;tilt.rx=0;tilt.o=null;tiltApply(true);
+  tilt.base=tilt.ry=tap?Math.round(d.ry/180)*180+180:Math.round(tilt.ry/180)*180;tilt.rx=0;tiltApply(true);
   const w=document.querySelector('.pwrap');if(w)w.classList.toggle('show',faceUp());coverArm()}
 /* 玩家自己的牌：翻到正面 10 秒後自動蓋回，換階段或切走畫面時也馬上蓋回，免得忘了蓋被旁邊看到 */
 let coverT=0;const COVER=10000;
-function cover(){clearTimeout(coverT);if(NET.mode!=='player'||faceUp()===false)return;tilt.drag=null;tilt.base=tilt.ry=Math.round(tilt.base/180)*180+180;tilt.rx=0;tilt.o=null;tiltApply(true);
+function cover(){clearTimeout(coverT);if(NET.mode!=='player'||faceUp()===false)return;tilt.drag=null;tilt.base=tilt.ry=Math.round(tilt.base/180)*180+180;tilt.rx=0;tiltApply(true);
   const w=document.querySelector('.pwrap');if(w)w.classList.remove('show')}
 function coverArm(){clearTimeout(coverT);if(NET.mode==='player'&&faceUp())coverT=setTimeout(cover,COVER)}
 document.addEventListener('visibilitychange',function(){if(document.visibilityState!=='visible')cover()});
@@ -839,10 +841,16 @@ function onOrient(e){if(tilt.drag||e.beta==null||!document.querySelector('.c3d')
   if(!tilt.o)tilt.o={b:e.beta,g:e.gamma};
   const cl=(v,m)=>Math.max(-m,Math.min(m,v));
   tilt.rx=cl(-(e.beta-tilt.o.b)*.8,30);tilt.ry=tilt.base+cl((e.gamma-tilt.o.g)*1.0,35);tiltApply(false)}
-function motionStart(){if(motionOn)return;motionOn=true;window.addEventListener('deviceorientation',onOrient)}
-if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission!=='function')motionStart();
-document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-m="motion"]');if(!b)return;
-  DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted'){motionStart();toast('已開啟，晃動手機試試');render()}else toast('沒有取得動作感應的權限')}).catch(()=>toast('這個瀏覽器不支援動作感應'))});
+/* 晃動連動一律要自己按才開，也能隨時關。基準角度只在開啟那一刻記一次，翻面、蓋牌都不重設，卡片才不會歪掉 */
+const canMotion=()=>typeof DeviceOrientationEvent!=='undefined';
+function motionStart(){if(motionOn)return;motionOn=true;tilt.o=null;window.addEventListener('deviceorientation',onOrient)}
+function motionStop(){if(!motionOn)return;motionOn=false;window.removeEventListener('deviceorientation',onOrient);tilt.o=null;tilt.rx=0;tilt.ry=tilt.base;tiltApply(true)}
+function motionBtn(){return canMotion()?'<div class="row"><button class="btn sm" data-m="'+(motionOn?'off':'on')+'">'+(motionOn?'關閉晃動連動':'開啟手機晃動連動')+'</button>'+(motionOn?'<button class="btn sm" data-m="zero">以現在的角度為正面</button>':'')+'</div>':''}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-m]');if(!b)return;const m=b.getAttribute('data-m');
+  if(m==='off'){motionStop();render()}
+  else if(m==='zero'){tilt.o=null;toast('已重設正面角度')}
+  else if(typeof DeviceOrientationEvent.requestPermission==='function')DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted'){motionStart();toast('已開啟，晃動手機試試');render()}else toast('沒有取得動作感應的權限')}).catch(()=>toast('這個瀏覽器不支援動作感應'));
+  else{motionStart();toast('已開啟，晃動手機試試');render()}});
 
 /* ---------- 動作 ---------- */
 const UI=['card','seat','brush','player','menu','open','close','veil','pickOpen','pickCancel','viewShow','viewHide','viewNext','viewEnd','viewStart','hide','timer','undo'];
@@ -1056,7 +1064,7 @@ function vRoom(){if(NET.mode!=='host')return '<h2>連線發牌</h2><p class="not
     +'<p class="note">'+{cards:'現場有牌：用實體牌。手機只顯示目前階段，不顯示身份；夜晚照舊閉眼、比手勢，由你記錄。',
       phone:'現場沒牌：牌顯示在各自手機上，階段切換時手機會提示。夜晚照舊閉眼、比手勢，由你記錄；手機上不會出現任何選項。',
       online:'線上玩：牌在手機上，夜晚輪到誰，他的手機會跳出選項（刀誰、救不救、驗誰…），選完直接顯示在你的畫面上，你照常按下一步。'}[pm]+'</p>'
-    +'<p class="note">加入方式：用手機相機掃 QR code；或打開同一個網址，按「加入房間」輸入房號；或把連結傳給大家。</p>'
+    +'<p class="note">加入方式：用手機相機掃 QR code；或打開同一個網址，按「加入房間」輸入房號；或把連結傳給大家。有人一直卡在連線中，通常是他開著 VPN，關掉就好。</p>'
     +'<div class="row"><button class="btn" data-n="share">分享連結</button></div>'
     +(S.players.length?'<div class="plist">'+S.players.map(p=>{const tk=ow[p.id],on=isOn(tk);
       return '<span class="'+(tk?on?'on':'off':'')+'"><b>'+p.id+'</b><em>'+(tk?esc(NET.names[tk]||'（沒填名字）')+(on?'':'・離線'):'空位')+'</em>'+(tk?'<button data-n="kick" data-p="'+p.id+'" aria-label="請出 '+p.id+'號">✕</button>':'')+'</span>'}).join('')+'</div>'
@@ -1163,7 +1171,7 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
 function playerLeave(){psend({t:'leave'});NET={mode:null,name:NET.name||''};netSave();PV=null;netSt='';setTimeout(netKill,200);
   try{history.replaceState(null,'',location.pathname)}catch(e){}}
 function vPlayer(){const hd=t=>'<header class="bar"><h1>'+(PV&&PV.pk&&ICON[PV.pk==='day'?'sun':'moon']&&PV.pk!=='over'?'<span class="orb">'+ICON[PV.pk==='day'?'sun':'moon']+'</span>':'')+'<span class="ttl">'+t+'</span></h1><button class="btn sm" data-n="leave">離開</button></header>';
-  if(!NET.code)return hd('加入房間')+'<section class="card"><h2>輸入房號</h2><p class="note">房號在裁判的手機上，四個數字。也可以直接用相機掃裁判畫面上的 QR code。</p>'
+  if(!NET.code)return hd('加入房間')+'<section class="card"><h2>輸入房號</h2><p class="note">房號在裁判的手機上，四個數字。也可以直接用相機掃裁判畫面上的 QR code。</p><p class="note">手機開著 VPN 會連不上，加入前請先關掉。</p>'
     +'<label class="field">房號<input id="j-code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="例如 4821"></label>'
     +'<label class="field">你的名字<input id="j-name" maxlength="12" autocomplete="off" placeholder="讓裁判認得你" value="'+esc(NET.name||'')+'"></label>'
     +'<div class="row"><button class="btn pri" data-n="join">加入</button></div></section>';
@@ -1174,8 +1182,8 @@ function vPlayer(){const hd=t=>'<header class="bar"><h1>'+(PV&&PV.pk&&ICON[PV.pk
       +(v.alive===false?'<p class="note w">你已出局。</p>':'')+(v.lucky?'<p class="note on">你是幸運兒：持有交易來的'+ITEM[v.lucky]+'。</p>':'')+(v.over?'<p class="say">'+esc(v.over)+'</p>':'')
       +'<div class="pwrap'+(faceUp()?' show':'')+'"><div class="stage3d"><div class="c3d" style="transform:rotateX('+tilt.rx.toFixed(2)+'deg) rotateY('+tilt.ry.toFixed(2)+'deg)"><i class="cf av-'+v.role+'"><u class="gl"></u></i><i class="cb av-back"></i></div></div>'
       +'<div class="pinfo"><h2 class="c-'+r.t+'">'+r.n+'<small class="ct">'+TEAM[r.t]+'</small></h2><p class="say" style="margin:0">'+FX[v.role]+'</p></div></div>'
-      +'<p class="note" style="text-align:center">點一下卡片翻面，拖曳可以旋轉。正面 10 秒後會自動蓋回，換階段時也會；翻開前確認旁邊沒人看得到螢幕。</p>'
-      +(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'&&!motionOn?'<div class="row"><button class="btn sm" data-m="motion">開啟手機晃動連動</button></div>':'')+'</section>'}
+      +'<p class="note" style="text-align:center">點一下卡片翻面，左右拖曳可以旋轉。正面 10 秒後會自動蓋回，換階段時也會；翻開前確認旁邊沒人看得到螢幕。</p>'
+      +motionBtn()+'</section>'}
   if(v.seat&&v.pk&&!v.role)return hd('房間 '+NET.code)+st+'<section class="card"><h2>'+v.seat+'號'+(v.name?'・'+esc(v.name):'')+'<small>'+esc(v.ph)+'</small></h2>'
     +(v.alive===false?'<p class="note w">你已出局。</p>':'')+(v.over?'<p class="say">'+esc(v.over)+'</p>':'')
     +'<p class="note">'+(v.play==='cards'?'這一局用實體牌，身份看你手上的牌。手機只顯示目前階段。':'裁判還沒記錄你的身份，稍等一下。')+'</p></section>';
