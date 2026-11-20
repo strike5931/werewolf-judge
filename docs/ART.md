@@ -685,7 +685,7 @@ python3 tools/gen_art.py icon_角色代號
 
 ## 動態牌面
 
-牌面可以做成有視差、部位會飄的動態版本。除了騎士（等重產牌面）以外，14 張都做了。
+牌面可以做成有視差、部位會飄的動態版本。15 張都做了。
 
 **分層**：[`tools/gen_layers.py`](../tools/gen_layers.py) 拿牌自己當參考圖，產兩張圖存到 `art/layers/`：
 

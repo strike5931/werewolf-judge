@@ -81,6 +81,28 @@ POSES = {
         "Fix: the hanging lantern on the right side. Its chain is currently wavy and its top end floats loose in mid-air. Redraw it so the chain hangs perfectly straight and vertical, "
         "attached at the top to the underside of the arched top band, exactly mirroring the lantern on the left side: same straight chain, same length, same lantern design, same height. "
         "The bottom banner stays completely blank. " + g.NO_TEXT),
+    # 騎士 A、B：使用者指出舉劍的手畫反了（看起來像右手的位置卻是另一隻手的形狀），要改成左手持劍
+    "knight_a": ("edit", "knight",
+        "Redraw this same card with one fix: the hand holding the sword. " + "Keep exactly the same flat illustration style, colours, frame, top band with medallions, blank bottom banner, and the same knight facing the same way with the same armour, fur collar, long hair and cape. "
+        "Fix: the raised arm that holds the sword is his LEFT arm, and the gauntleted hand gripping the hilt must be drawn as an anatomically correct left hand: "
+        "fingers wrapped around the grip from the correct side, thumb on the correct side, wrist and forearm joining naturally. The sword keeps the same direction and position, pointing to the upper right. "
+        "His right arm hangs relaxed at his side, partly hidden by the cape. The bottom banner stays completely blank. " + g.NO_TEXT),
+    "knight_b": ("edit", "knight",
+        "Redraw this same card with one change: which arm holds the sword. " + "Keep exactly the same flat illustration style, colours, frame, top band with medallions, blank bottom banner, and the same knight facing the same way with the same armour, fur collar, long hair and cape. "
+        "Change: he now raises the sword with his other arm, the one nearer to the viewer, reaching across in front of his chest toward the upper right, "
+        "with an anatomically correct gauntleted hand gripping the hilt, thumb and fingers on the correct sides. The arm that previously held the sword now hangs relaxed behind him, mostly hidden by the cape. "
+        "The sword keeps the same direction and position, pointing to the upper right. The bottom banner stays completely blank. " + g.NO_TEXT),
+    # 騎士 C、D：使用者給了姿勢參考（只取姿勢）：正面站立，一手高舉反握巨劍的劍柄，劍身朝下斜過身前，劍尖落在腳邊；另一隻手自然垂下
+    "knight_c": ("gen", g.card(g.DAY, g.FACE_HUMAN, "dusty rose with touches of gold", "roses, crossed swords, small banners, laurel leaves",
+        "a noble knight in elegant plate armour with a fur collar and a long cape, shoulder-length hair tied back, standing tall and facing the viewer with the body turned slightly: "
+        "his right hand is raised to shoulder height gripping the hilt of an enormous greatsword held point-down, the huge broad blade slanting diagonally across the front of his body "
+        "from the upper left of the card down to the lower right, its tip resting near his feet; the sword is almost as tall as he is, with an ornate rose-shaped guard. "
+        "His left arm hangs relaxed at his side with an open gauntleted hand, the long cape falls behind him and spreads wide at the bottom, head tilted slightly down.")),
+    "knight_d": ("gen", g.card(g.DAY, g.FACE_HUMAN, "dusty rose with touches of gold", "roses, crossed swords, small banners, laurel leaves",
+        "a noble knight in elegant plate armour with a fur collar and a long cape, shoulder-length hair tied back, standing in a calm, imposing stance facing the viewer, feet apart: "
+        "he holds an enormous greatsword reversed in his right hand, the hilt up by his right shoulder and the huge broad blade pointing down, slanting across his body to the lower right "
+        "with its tip touching the ground beside his left foot; the sword is as tall as he is, with an ornate rose-shaped guard and a long grip. "
+        "His left hand rests lightly on his hip, the long cape billows out to one side in big sweeping shapes, head turned slightly to the side.")),
     # 狼弟覺醒 A：掙脫。仰頭嚎叫、雙臂向後張開，斗篷被撕開往兩側飛散
     "wolfyb2_a": ("edit", "wolfyb",
         "Redraw this same card as the character's awakening moment, in a completely new and much more dynamic pose. Keep exactly the same flat illustration style, the same black card, "

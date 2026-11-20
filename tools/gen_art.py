@@ -74,8 +74,12 @@ ROLES = {
                      "with his free hand resting on its top edge; a long cape streams out behind him in big sweeping shapes, head turned to look ahead."),
     "idiot":    card(DAY, FACE_HUMAN, "marigold orange with touches of gold", "juggling balls, playing cards, small bells, ribbons",
                      "a cheerful fool in a two-pointed jester's cap with bells and a patchwork tunic, balancing on one foot and tossing playing cards into the air."),
+    # 現用的騎士圖是候選 C（見 tools/gen_poses.py）：原本舉劍指向前方的那張手畫反了，改成反握巨劍的站姿
     "knight":   card(DAY, FACE_HUMAN, "dusty rose with touches of gold", "roses, crossed swords, small banners, laurel leaves",
-                     "a noble knight in elegant plate armour with a long cape and a plume, shoulder-length hair, raising a longsword in a duelling salute."),
+                     "a noble knight in elegant plate armour with a fur collar and a long cape, shoulder-length hair tied back, standing tall and facing the viewer with the body turned slightly: "
+                     "his right hand is raised to shoulder height gripping the hilt of an enormous greatsword held point-down, the huge broad blade slanting diagonally across the front of his body "
+                     "from the upper left of the card down to the lower right, its tip resting near his feet; the sword is almost as tall as he is, with an ornate rose-shaped guard. "
+                     "His left arm hangs relaxed at his side with an open gauntleted hand, the long cape falls behind him and spreads wide at the bottom, head tilted slightly down."),
     "merchant": card(DAY, FACE_HUMAN, "amber ochre with touches of gold", "coins, small keys, vials, dangling charms",
                      "a shrewd travelling merchant in a hooded patchwork cloak, hair hidden by the hood, holding one side of the cloak open to show a small crystal orb, a vial and an old pistol hanging inside."),
     "villager": card(DAY, FACE_HUMAN, "wheat yellow with touches of gold", "wheat stalks, small cottages, daisies, sparrows",
