@@ -60,7 +60,10 @@ NIGHT_ROLES = {"wolf", "wolfbro", "wolfyb", "wolfyb2", "wolfking", "whitewolf", 
 def cut(path, key):
     """去背：離底色越近越透明，邊緣留一點半透明避免鋸齒，並把邊緣沾到的底色抽掉。原圖另存一份 _raw。"""
     from PIL import Image
-    im = Image.open(path).convert("RGB"); im.save(path[:-4] + "_raw.png")
+    raw = path[:-4] + "_raw.png"
+    if not os.path.exists(raw):
+        Image.open(path).convert("RGB").save(raw)
+    im = Image.open(raw).convert("RGB")   # 一律從未去背的原圖重算，才能重複調整
     px = im.load(); W, H = im.size
     out = Image.new("RGBA", (W, H)); op = out.load()
     LO, HI = 70.0, 150.0   # 色差小於 LO 全透明，大於 HI 全不透明
@@ -71,6 +74,16 @@ def cut(path, key):
             a = 0.0 if d <= LO else 1.0 if d >= HI else (d - LO) / (HI - LO)
             if 0 < a < 1:   # 半透明的邊緣像素：把混進來的底色扣掉
                 r, g, b = [max(0, min(255, int((c - key[i] * (1 - a)) / a))) for i, c in enumerate((r, g, b))]
+            # 細線（鍊子、髮絲）和鏤空的小洞，整塊都是底色和線條混在一起，光看色差去不乾淨。
+            # 另外量「底色味」：洋紅底看紅、藍同時高過綠多少，綠底看綠高過紅、藍多少。味道越重越透明，並把偏掉的色版壓回來
+            if a > 0:
+                m = (min(r, b) - g) if key[1] == 0 else (g - max(r, b))
+                if m > 30:
+                    k = min(1.0, (m - 30) / 110.0); a *= (1 - k)
+                    if key[1] == 0:
+                        b = int(g + (b - g) * 0.2)
+                    else:
+                        g = int(max(r, b) + (g - max(r, b)) * 0.2)
             op[x, y] = (r, g, b, int(a * 255))
     out.save(path)
 
@@ -105,6 +118,10 @@ if __name__ == "__main__":
     if not os.environ.get("OPENAI_API_KEY"):
         sys.exit("找不到 OPENAI_API_KEY 環境變數。")
     os.makedirs(OUT, exist_ok=True)
+    if "--recut" in sys.argv:   # 不重產，只用留著的原圖重新去背
+        for r in [a for a in sys.argv[1:] if not a.startswith("--")]:
+            cut(os.path.join(OUT, r + "_fig.png"), (0, 255, 0) if r in NIGHT_ROLES else (255, 0, 255)); print(r, "已重新去背")
+        sys.exit()
     if "--feather" in sys.argv:
         print("%-28s %s" % ("feather.png", feather()[1])); sys.exit()
     roles = [a for a in sys.argv[1:] if not a.startswith("--")] or sys.exit("請指定角色代號，例如 seer；或 --feather 產羽毛")
