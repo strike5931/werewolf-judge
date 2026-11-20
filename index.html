@@ -67,6 +67,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .av-wolf{filter:brightness(1.7) contrast(.9)}
 .chip.dead .av{filter:grayscale(1);opacity:.45}
 .av.av-back{background-size:cover;background-position:center;border-radius:5px;width:1.3rem;margin:0 .225rem}
+.seg .btn{flex:1 1 0}
 .roomno{font-size:3rem;letter-spacing:.25em;text-indent:.25em}
 .qr{background:#fff;padding:8px;border-radius:12px;width:min(58vw,13rem);margin:0 auto}
 .qr svg{display:block;width:100%;height:auto}
@@ -513,6 +514,7 @@ function vSetup(){const c=S.cfg,tot=total(),ok=tot===c.n&&Object.keys(ROLES).som
     +'<button class="pm" data-a="role+" data-p="'+k+'" aria-label="增加'+ROLES[k].n+'">＋</button></div>').join('')+'</div>';
   const R=c.rules,opt=(k,v,l)=>'<option value="'+v+'"'+(String(R[k])===String(v)?' selected':'')+'>'+l+'</option>';
   return bar('狼人殺裁判台')
+  +'<section class="card"><h2>我是玩家</h2><p class="note">裁判開了連線房間的話，從這裡輸入房號加入，在自己的手機上看牌。</p><div class="row"><button class="btn" data-n="pmode">加入房間</button></div></section>'
   +'<section class="card"><h2>人數</h2><div class="step"><div class="lb">玩家人數<small>調整時自動增減平民</small></div>'
   +'<button class="pm" data-a="n-"'+(c.n>4?'':' disabled')+' aria-label="減少人數">−</button><span class="v">'+c.n+'</span><button class="pm" data-a="n+"'+(c.n<20?'':' disabled')+' aria-label="增加人數">＋</button></div>'
   +'<div class="row"><button class="btn sm" data-a="preset">套用 '+c.n+' 人建議配置</button></div>'
@@ -530,7 +532,7 @@ function vSetup(){const c=S.cfg,tot=total(),ok=tot===c.n&&Object.keys(ROLES).som
   +(c.roles.merchant?'<label class="field">黑市商人交易到狼人<select id="r-tradeFail" data-c="rule" data-p="tradeFail">'+opt('tradeFail','merchant','交易失敗，黑市商人出局')+opt('tradeFail','wolf','交易失敗，該狼人出局')+'</select></label>'
   +'<label class="field">幸運兒的查驗<select id="r-crystal" data-c="rule" data-p="crystal">'+opt('crystal','once','只能查驗一次')+opt('crystal','every','每晚都能查驗')+'</select></label>':'')
   +'</section>'
-  +'<section class="card"><h2>我是玩家</h2><p class="note">裁判開了連線房間的話，從這裡輸入房號加入，在自己的手機上看牌。</p><div class="row"><button class="btn" data-n="pmode">加入房間</button></div></section>'
+  +'<section class="card"><h2>外觀</h2>'+themeRow()+'</section>'
   +foot('<button class="btn pri" data-a="toAssign"'+(ok?'':' disabled')+'>'+(ok?'下一步：座位與發牌':'卡牌需等於人數，且至少一張狼牌')+'</button>')}
 
 /* ---------- 畫面：發牌 ---------- */
@@ -716,7 +718,7 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
       +'<div class="row"><button class="btn" data-a="setRole" data-p="'+p.id+':"'+(p.role?'':' disabled')+'>清除身份</button><button class="btn pri" data-a="close">完成</button></div>';
   }else if(s.type==='menu'){const g=S.phase==='night'||S.phase==='day';
     h='<h2>選單</h2>'+(S.test?'<button class="btn pri" data-a="endTest">結束測試，回到原本的局</button>':'')+'<button class="btn" data-a="open" data-p="log">本局紀錄</button><button class="btn" data-a="open" data-p="cheat">裁判小抄</button><button class="btn" data-a="open" data-p="cards">卡牌圖鑑</button><button class="btn" data-a="open" data-p="room">連線房間'+(NET.mode==='host'?'（'+NET.code+'）':'')+'</button>'
-      +'<button class="btn" data-a="timer">發言計時器</button><button class="btn" data-a="open" data-p="tests">快速測試</button>'
+      +''+themeRow()+'<button class="btn" data-a="timer">發言計時器</button><button class="btn" data-a="open" data-p="tests">快速測試</button>'
       +(g?'<button class="btn" data-a="end">結束遊戲，公布身份</button><button class="btn" data-a="again">重新開始（同配置、同座位）</button>':'')
       +(S.phase!=='setup'?'<button class="btn" data-a="toSetup">回到配置設定</button>':'')
       +'<p class="note">所有操作都能用「復原」退回，包含重新開始。</p><button class="btn pri" data-a="close">關閉</button>';
@@ -939,6 +941,12 @@ const joinUrl=()=>location.origin+location.pathname+'?room='+NET.code;
 function soft(){const ae=document.activeElement;if(ae&&(ae.tagName==='INPUT'||ae.tagName==='SELECT')&&ae.closest('#app'))return;render()}
 function netKill(){clearTimeout(retryT);if(peer){const o=peer;peer=null;try{o.destroy()}catch(e){}}pconn=null;conns={}}
 
+/* 外觀：深色／淺色／跟隨手機。存在這支手機上，不跟著對局走 */
+const TKEY='wwj-theme';let THEME='dark';
+function themeApply(){const r=document.documentElement;if(THEME==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',THEME);
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',getComputedStyle(r).getPropertyValue('--bg').trim()||'#10162a')}
+function themeLoad(){try{const t=localStorage.getItem(TKEY);if(t==='dark'||t==='light'||t==='auto')THEME=t}catch(e){}themeApply()}
+function themeRow(){return '<div class="row seg">'+[['dark','深色'],['light','淺色'],['auto','跟隨手機']].map(o=>'<button class="btn sm'+(THEME===o[0]?' sel':'')+'" data-n="theme" data-p="'+o[0]+'">'+o[1]+'</button>').join('')+'</div>'}
 /* 裁判端。房號只有四位數，任何人都可能連進來，所以對方送來的東西一律當不可信：限制連線數、訊息頻率和記住的人數 */
 const MAXC=40;
 function hostOpen(fresh){if(NET.mode!=='host'||fresh)NET={mode:'host',code:String(1000+Math.floor(Math.random()*9000)),seats:{},names:{},dealt:false};
@@ -1029,7 +1037,8 @@ function vPlayer(){const hd=t=>'<header class="bar"><h1><span class="ttl">'+t+'<
     +'<p class="note">'+(lock?(v.seat?'座位已鎖定，等裁判發牌。':'遊戲已開始，不能再選座位，請找裁判。'):v.seat?'選好了。等所有人入座後，裁判會發牌到這裡。':'點一個空位，照實際坐的位置選。')+'</p></section>'}
 document.addEventListener('click',function(ev){const el=ev.target.closest&&ev.target.closest('[data-n]');if(!el||el.disabled)return;wake();
   const a=el.getAttribute('data-n'),p=el.getAttribute('data-p');
-  if(a==='hostOpen')hostOpen();
+  if(a==='theme'){THEME=p;try{localStorage.setItem(TKEY,p)}catch(e){}themeApply()}
+  else if(a==='hostOpen')hostOpen();
   else if(a==='hostClose'){hostClose();S.sheet=null;toast('房間已關閉')}
   else if(a==='dealNet'){NET.dealt=true;netSave();netPush();toast('已發牌到玩家手機')}
   else if(a==='kick'){const tk=owners()[+p];if(tk){delete NET.seats[tk];delete NET.names[tk];const cn=conns[tk];delete conns[tk];if(cn)try{cn.close()}catch(e){}P(+p).name='';netSave();save();toast(p+'號的座位已清空')}}
@@ -1059,7 +1068,7 @@ let wl=null;
 function wake(){try{if(!wl&&navigator.wakeLock)navigator.wakeLock.request('screen').then(function(l){wl=l;l.addEventListener('release',function(){wl=null})}).catch(function(){})}catch(e){}}
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')wake()});
 
-load();netBoot();render();
+themeLoad();load();netBoot();render();
 })();
 </script>
 
