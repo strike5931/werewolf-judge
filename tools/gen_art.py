@@ -98,36 +98,45 @@ EDITS = {
                 "The bottom banner stays completely blank. " + NO_TEXT),
 }
 
-SCENE = (LOOK + "It belongs to the same art set as a deck of flat paper-cut tarot cards. No characters in the foreground. " + NO_TEXT + " ")
+# 介面用圖：一律拿產好的牌當參考圖（走 images/edits），畫法才會和牌面是同一套：
+# 單一主色＋米白或黑底、同色系細線勾邊、繩結拱帶、嵌白色小圖示的圓章。
+STYLE_REF = (
+    "Use the attached card image(s) only as a style reference. Match their look exactly: completely flat fills with crisp edges, thin tone-on-tone outlines, "
+    "a nearly monochrome scheme built on one dominant hue, the same interlaced ribbon knot-work bands, the same small round medallions holding simple white icons, "
+    "the same thin double-line tan border, and a few scattered small flat motifs. No gradients, no shading, no texture, no paper-cut depth or drop shadows. "
+    "Do not copy the character from the reference. " + NO_TEXT + " Now create a new image: "
+)
+DAY_PAL = "Palette: warm cream base, sky blue as the single dominant hue, pale grey-beige and white, with a few touches of gold."
+NIGHT_PAL = "Palette: matte black base, deep violet as the single dominant hue, dark slate grey and pale ash white, with a few touches of gold. Outline dark shapes in a slightly lighter shade of their own colour."
 UI = {
-    "day": ("1536x1024", SCENE + "Wide landscape, full bleed, no frame: a small medieval village on rolling hills in daylight, built from simple layered flat shapes. "
-            "Palette: warm cream sky, sky blue and pale grey-beige hills, white clouds, a large flat pale-gold sun disc with thin rays, a few laurel and lily shapes at the edges. Calm, bright and airy, with plenty of empty sky."),
-    "night": ("1536x1024", SCENE + "Wide landscape, full bleed, no frame: the same small medieval village on rolling hills at night, built from simple layered flat shapes. "
-              "Palette: matte black sky, deep violet and dark slate hills, a large flat pale ash-white crescent moon, a few tiny gold stars, a handful of small lit windows, thorn and pine silhouettes at the edges. Quiet and ominous, with plenty of empty sky."),
-    "cardback": ("1024x1536", SCENE + "The ornamental back of a tarot card, perfectly symmetrical, portrait, full bleed. Left half of the palette is warm cream with sky blue, right half is matte black with deep violet, "
-                 "meeting in the centre. A central round medallion holds a sun and a crescent moon joined together with a wolf paw print in the middle. "
-                 "Around it, interlaced ribbon knot-work, small round medallions, laurel on the light side and thorn sprigs on the dark side, thin double-line tan border with rounded corners."),
-    "win_good": ("1536x1024", SCENE.replace("No characters in the foreground. ", "") + "Wide scene, full bleed, no frame: villagers drawn as small flat faceless figures in the village square raising lanterns and laurel wreaths in celebration, "
-                 "a huge flat pale-gold sun disc rising behind the cottages. Palette: warm cream, sky blue, pale grey-beige, white and gold."),
-    "win_wolf": ("1536x1024", SCENE.replace("No characters in the foreground. ", "") + "Wide scene, full bleed, no frame: a pack of wolves as flat silhouettes on a hill howling at a huge flat ash-white crescent moon, "
-                 "below them a dark silent village with no lit windows. Palette: matte black, deep violet, deep crimson accents, dark slate grey and a little gold."),
-    "appicon": ("1024x1024", SCENE + "A square app icon, full bleed, no rounded corners and no border: a bold flat wolf head in profile howling upward inside a large flat pale-gold crescent moon, "
-                "on a matte black background with a deep violet disc behind it. Very simple, strong silhouette readable at small size, centered."),
+    "day": ("1536x1024", ["seer"], STYLE_REF + "a wide landscape banner, full bleed. A small medieval village of simple flat cottages and one church spire on gentle hills, "
+            "drawn as large calm flat shapes with thin tone-on-tone outlines. A big flat sun disc sits behind the village, ringed by a thin knot-work band. "
+            "An arched knot-work band with five small round medallions (sun, laurel, lily, feather, star icons) runs across the top edge. Lilies and laurel sprigs at the lower corners, tiny sunbursts in the sky. "
+            "No people. Lots of calm empty sky. " + DAY_PAL),
+    "night": ("1536x1024", ["wolf"], STYLE_REF + "a wide landscape banner, full bleed. The same small medieval village of simple flat cottages and one church spire on gentle hills at night, "
+              "drawn as large calm flat shapes clearly visible against the sky, with a few small lit windows. A big flat deep-violet disc sits behind the village with a pale ash-white crescent moon inside it, ringed by a thin knot-work band. "
+              "An arched knot-work band with five small round medallions (crescent moon, bat, wolf head, pine tree, star icons) runs across the top edge. Thorn sprigs and pine silhouettes at the lower corners, tiny stars and crystal shards in the sky. "
+              "No people. The hills and village must stay readable, not swallowed by black. " + NIGHT_PAL),
+    "cardback": ("1024x1536", ["seer", "wolf"], STYLE_REF + "the ornamental back of this tarot deck, portrait, full bleed, perfectly symmetrical, with no character and no banner. "
+                 "Keep the same thin double-line tan border and rounded arch. In the centre, one large round medallion ringed by knot-work: its left half is a sky-blue sun with short rays, its right half is a deep-violet crescent moon, "
+                 "and a white wolf paw print sits in the middle where they meet. Above and below it, mirrored arched knot-work bands each carry three small round medallions with simple white icons (star, laurel, crescent). "
+                 "Fill the rest with a calm repeating pattern of small flat diamonds and four-point stars. "
+                 "Palette: warm cream base, muted antique gold-tan as the dominant hue for the bands and pattern, with sky blue and deep violet only inside the central medallion."),
+    "win_good": ("1536x1024", ["seer"], STYLE_REF + "a wide celebration banner, full bleed. A row of tall, slender, faceless villagers in simple robes, drawn exactly like the card figure (blank faces with shaped outlines, flowing flat hair and drapery), "
+                 "raising lanterns and laurel wreaths in the village square. A huge flat sun disc rises behind them, ringed by a knot-work band. An arched knot-work band with five small round medallions runs across the top edge. "
+                 "Lilies, feathers and tiny sunbursts scattered around. " + DAY_PAL),
+    "win_wolf": ("1536x1024", ["wolf"], STYLE_REF + "a wide triumph banner, full bleed. Three werewolves drawn exactly like the card figure (stylised wolf heads, only two small glowing eye shapes, flowing flat fur and tattered coats) "
+                 "stand on a hill howling, above a small silent village with no lit windows. A huge flat deep-violet disc with a pale ash-white crescent moon rises behind them, ringed by a knot-work band. "
+                 "An arched knot-work band with five small round medallions runs across the top edge. Bats, thorn sprigs and crystal shards scattered around, with a few deep crimson accents. " + NIGHT_PAL),
+    "appicon": ("1024x1024", ["wolf"], STYLE_REF + "a square app icon, full bleed, no rounded corners and no outer border. One large round medallion fills the square: a bold white wolf head in profile howling upward, "
+                "inside a pale-gold crescent moon, on a flat deep-violet disc, ringed by a single knot-work band with four tiny round medallions at the compass points. Matte black corners. "
+                "Very simple and bold so it reads at small size; thin tone-on-tone outlines, a little gold on the ring only."),
 }
 
 def _post(url, data, headers):
     req = urllib.request.Request(url, data=data, headers=dict(headers, Authorization="Bearer " + os.environ["OPENAI_API_KEY"]))
     with urllib.request.urlopen(req, timeout=420) as r:
         return base64.b64decode(json.load(r)["data"][0]["b64_json"])
-
-def _multipart(fields, files):
-    b = uuid.uuid4().hex; out = []
-    for k, v in fields.items():
-        out += [("--" + b).encode(), ('Content-Disposition: form-data; name="%s"' % k).encode(), b"", str(v).encode()]
-    for k, (fn, raw) in files.items():
-        out += [("--" + b).encode(), ('Content-Disposition: form-data; name="%s"; filename="%s"' % (k, fn)).encode(), b"Content-Type: image/png", b"", raw]
-    out += [("--" + b + "--").encode(), b""]
-    return b"\r\n".join(out), "multipart/form-data; boundary=" + b
 
 def path_of(name):
     return os.path.join(OUT, "ui", name + ".png") if name in UI else os.path.join(OUT, name + ".png")
@@ -138,17 +147,24 @@ def gen(name):
         return name, "已存在，跳過"
     os.makedirs(os.path.dirname(path), exist_ok=True)
     try:
-        if name in EDITS:
-            src, prompt = EDITS[name]
-            if not os.path.exists(path_of(src)):
-                return name, "缺參考圖 %s.png，請先產它" % src
-            body, ctype = _multipart({"model": MODEL, "prompt": prompt, "size": "1024x1536", "quality": QUALITY},
-                                     {"image[]": (src + ".png", open(path_of(src), "rb").read())})
-            raw = _post("https://api.openai.com/v1/images/edits", body, {"Content-Type": ctype})
+        if name in EDITS or name in UI:
+            if name in EDITS:
+                src, prompt = EDITS[name]; refs, size = [src], "1024x1536"
+            else:
+                size, refs, prompt = UI[name]
+            miss = [r for r in refs if not os.path.exists(path_of(r))]
+            if miss:
+                return name, "缺參考圖 %s，請先產它" % miss
+            body = b""; b = uuid.uuid4().hex; parts = []
+            for k, v in {"model": MODEL, "prompt": prompt, "size": size, "quality": QUALITY}.items():
+                parts += [("--" + b).encode(), ('Content-Disposition: form-data; name="%s"' % k).encode(), b"", str(v).encode()]
+            for r in refs:   # 可以附多張參考圖
+                parts += [("--" + b).encode(), ('Content-Disposition: form-data; name="image[]"; filename="%s.png"' % r).encode(), b"Content-Type: image/png", b"", open(path_of(r), "rb").read()]
+            parts += [("--" + b + "--").encode(), b""]
+            raw = _post("https://api.openai.com/v1/images/edits", b"\r\n".join(parts), {"Content-Type": "multipart/form-data; boundary=" + b})
         else:
-            size, prompt = UI[name] if name in UI else ("1024x1536", ROLES[name])
             raw = _post("https://api.openai.com/v1/images/generations",
-                        json.dumps({"model": MODEL, "prompt": prompt, "size": size, "quality": QUALITY, "n": 1}).encode(), {"Content-Type": "application/json"})
+                        json.dumps({"model": MODEL, "prompt": ROLES[name], "size": "1024x1536", "quality": QUALITY, "n": 1}).encode(), {"Content-Type": "application/json"})
     except urllib.error.HTTPError as e:
         return name, "失敗 %s：%s" % (e.code, e.read().decode()[:300].replace("\n", " "))
     except Exception as e:
@@ -165,9 +181,11 @@ if __name__ == "__main__":
     bad = [r for r in want if r not in ALL]
     if bad:
         sys.exit("不認得的名稱：%s（可用：%s）" % (bad, ", ".join(ALL)))
-    first = [w for w in want if w not in EDITS]
+    first = [w for w in want if w in ROLES]
     with ThreadPoolExecutor(4) as ex:
         for name, msg in ex.map(gen, first):
             print("%-10s %s" % (name, msg), flush=True)
-    for name in [w for w in want if w in EDITS]:   # 改畫的要等參考圖產好
-        print("%-10s %s" % gen(name), flush=True)
+    later = [w for w in want if w not in ROLES]   # 介面圖和改畫的都要等參考用的牌產好
+    with ThreadPoolExecutor(4) as ex:
+        for name, msg in ex.map(gen, later):
+            print("%-10s %s" % (name, msg), flush=True)
