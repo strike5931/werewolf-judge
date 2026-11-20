@@ -79,9 +79,12 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .plist .on{color:var(--fg);border-color:var(--vil)}
 .plist .off{border-style:dashed}
 .pseats{display:grid;grid-template-columns:repeat(auto-fill,minmax(5.2rem,1fr));gap:6px}
-.pstage{perspective:900px;display:flex;justify-content:center;padding:14px 0 6px;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:pointer}
-.pstage .c3d{transform:rotateY(180deg);transition:transform .35s cubic-bezier(.3,.9,.3,1)}
-.pwrap.show .c3d{transform:none}
+#ann{position:fixed;inset:0;z-index:31;display:none;align-items:center;justify-content:center;pointer-events:none}
+#ann.on{display:flex}
+.annb{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:60vw;max-width:86vw;padding:22px 26px;border-radius:20px;background:var(--surface);border:2px solid var(--moon);box-shadow:0 18px 60px rgba(0,0,0,.7);text-align:center}
+.annb svg{width:44px;height:44px;color:var(--moon)}
+.annb b{font-family:var(--display);font-weight:900;font-size:2rem;letter-spacing:.06em}
+.annb small{color:var(--muted);font-size:1rem}
 .pinfo{visibility:hidden;display:flex;flex-direction:column;gap:8px}
 .pwrap.show .pinfo{visibility:visible}
 .pinfo h2{display:block;text-align:center}
@@ -201,6 +204,8 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
   @keyframes orbin{0%{transform:rotate(-100deg)}45%{transform:rotate(-100deg)}85%{transform:rotate(7deg)}100%{transform:none}}
   @keyframes orbout{0%{transform:rotate(0)}50%{transform:rotate(100deg)}100%{transform:rotate(100deg)}}
   @keyframes ttlin{from{transform:translateY(1.2em)}}
+  #ann.on .annb{animation:annin 2.6s cubic-bezier(.2,.9,.3,1) forwards}
+  @keyframes annin{0%{transform:translateY(70vh) scale(.7)}12%{transform:translateY(-6px) scale(1.04)}18%{transform:none}86%{transform:none}100%{transform:translateY(-110vh) scale(.9)}}
   #flip.on{display:flex}
   #flip.on .fc{animation:cardflip 1.25s cubic-bezier(.3,.7,.3,1) forwards}
   @keyframes cardflip{0%{transform:translateY(60vh) scale(.5) rotateY(0)}18%{transform:scale(1) rotateY(0)}26%{transform:scale(1) rotateY(0)}58%{transform:scale(1.06) rotateY(180deg)}86%{transform:scale(1) rotateY(180deg)}100%{transform:translateY(-110vh) scale(.8) rotateY(180deg)}}
@@ -264,6 +269,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 <div id="app"></div>
 <div id="timer" hidden></div>
 <div id="flip" aria-hidden="true"></div>
+<div id="ann" role="status"></div>
 <div id="toast" role="status" hidden></div>
 
 <script>
@@ -729,7 +735,7 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
   }else if(s.type==='card'){const ks=CARDS(),i=ks.indexOf(s.k),r=RI(s.k),ios=typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function';
     h='<div class="stage3d"><div class="c3d"><i class="cf av-'+s.k+'"><u class="gl"></u></i><i class="cb av-back"></i></div></div>'
       +'<h2 class="c-'+r.t+'" style="text-align:center">'+r.n+'<small class="ct">'+TEAM[r.t]+'</small></h2><p class="say" style="margin:0">'+FX[s.k]+'</p>'
-      +'<p class="note">拖曳卡片可以旋轉，轉過去能看到牌背。'+(ios&&!motionOn?'</p><button class="btn sm" data-m="motion">開啟手機晃動連動</button>':motionOn?'晃動手機，卡片會跟著傾斜。</p>':'</p>')
+      +'<p class="note">點一下翻面，拖曳可以旋轉。'+(ios&&!motionOn?'</p><button class="btn sm" data-m="motion">開啟手機晃動連動</button>':motionOn?'晃動手機，卡片會跟著傾斜。</p>':'</p>')
       +'<div class="row"><button class="btn" data-a="card" data-p="'+ks[(i+ks.length-1)%ks.length]+'">‹ 上一張</button><button class="btn" data-a="open" data-p="cards">圖鑑</button><button class="btn" data-a="card" data-p="'+ks[(i+1)%ks.length]+'">下一張 ›</button></div>';
   }else if(s.type==='tests'){h='<h2>快速測試</h2><p class="note">直接跳到某個情境的關鍵步驟，實際按一次確認流程對不對。原本的局會保留，測完按「結束測試」就回去。</p>'+(S.test?'<button class="btn pri" data-a="endTest">結束測試，回到原本的局</button>':'')
       +TESTS.map((t,i)=>'<button class="btn" data-a="runTest" data-p="'+i+'" style="text-align:left;height:auto;padding:10px 14px"><b>'+t.n+'</b><span class="note" style="display:block;font-weight:400;margin-top:4px">'+t.d+'</span></button>').join('')
@@ -757,7 +763,7 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
 let toastT=null;
 function toast(m){const el=document.getElementById('toast');el.textContent=m;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){el.hidden=true},1600)}
 function render(){if(NET.mode==='player'){document.getElementById('app').innerHTML=vPlayer();
-    if(sceneKey!=='_night'){sceneKey='_night';document.getElementById('scene').style.backgroundImage=ART._night?'url('+ART._night+')':'none'}return}
+    const pk=PV&&PV.pk==='day'?'_day':'_night';if(sceneKey!==pk){sceneKey=pk;document.getElementById('scene').style.backgroundImage=ART[pk]?'url('+ART[pk]+')':'none'}return}
   const v={setup:vSetup,assign:vAssign,night:vNight,day:vDay,over:vOver}[S.phase]();
   const app=document.getElementById('app');app.innerHTML=v+vSheet();
   const vk=S.phase+':'+S.round+':'+S.step+':'+(S.pick?S.pick.type:'');
@@ -799,7 +805,11 @@ document.addEventListener('pointerdown',e=>{const st=e.target.closest&&e.target.
   tilt.drag={x:e.clientX,y:e.clientY,rx:tilt.rx,ry:tilt.ry};try{st.setPointerCapture(e.pointerId)}catch(_){}});
 document.addEventListener('pointermove',e=>{const d=tilt.drag;if(!d)return;
   tilt.ry=d.ry+(e.clientX-d.x)*.7;tilt.rx=Math.max(-40,Math.min(40,d.rx-(e.clientY-d.y)*.45));tiltApply(false)});
-function tiltEnd(){if(!tilt.drag)return;tilt.drag=null;tilt.base=tilt.ry=Math.round(tilt.ry/180)*180;tilt.rx=0;tilt.o=null;tiltApply(true)}
+const faceUp=()=>Math.abs(Math.round(tilt.base/180))%2===0;
+function tiltEnd(e){const d=tilt.drag;if(!d)return;tilt.drag=null;
+  const tap=e&&e.type==='pointerup'&&Math.abs(e.clientX-d.x)<7&&Math.abs(e.clientY-d.y)<7;
+  tilt.base=tilt.ry=tap?Math.round(d.ry/180)*180+180:Math.round(tilt.ry/180)*180;tilt.rx=0;tilt.o=null;tiltApply(true);
+  const w=document.querySelector('.pwrap');if(w)w.classList.toggle('show',faceUp())}
 document.addEventListener('pointerup',tiltEnd);document.addEventListener('pointercancel',tiltEnd);
 function onOrient(e){if(tilt.drag||e.beta==null||!document.querySelector('.c3d'))return;
   if(!tilt.o)tilt.o={b:e.beta,g:e.gamma};
@@ -930,7 +940,7 @@ document.getElementById('timer').addEventListener('click',function(ev){const b=e
 
 /* ---------- 連線房間：裁判手機當主機，玩家手機直接連過來（PeerJS／WebRTC） ---------- */
 const NKEY='wwj-net-v1',PEERJS='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js',QRJS='https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
-let NET={mode:null},peer=null,pconn=null,conns={},netSt='',PV=null,retryT=0,pushT=0,holdOn=false;
+let NET={mode:null},peer=null,pconn=null,conns={},netSt='',PV=null,retryT=0,pushT=0;
 function netSave(){try{localStorage.setItem(NKEY,JSON.stringify(NET))}catch(e){}}
 function netLoad(){try{const d=JSON.parse(localStorage.getItem(NKEY));if(d&&d.mode)NET=d}catch(e){}}
 const SRI={};SRI[PEERJS]='sha512-iFU+yF1keEaLDC9HEwPfLMSRaS0unBHE14GEgx6pQKJXjp5v0tvX8xpfp2lgJ62XEjbYp/M5C3CAmej/PWXMyA==';SRI[QRJS]='sha512-ZDSPMa/JM1D+7kdg2x3BsruQ6T/JpJo3jWDWkCZsP+5yVyp1KfESqLI+7RqB5k24F7p2cV7i2YHh/890y6P6Sw==';
@@ -968,7 +978,7 @@ function owners(){const o={};Object.keys(NET.seats||{}).forEach(tk=>{const s=NET
 function stateFor(tk){const ow=owners(),seat=ow[NET.seats[tk]]===tk?NET.seats[tk]:0,p=seat&&P(seat);
   return{t:'state',code:NET.code,n:S.players.length,lock:NET.dealt||S.phase!=='assign',seat:seat,name:NET.names[tk]||'',
     seats:S.players.map(q=>({id:q.id,name:q.name,alive:q.alive,taken:!!ow[q.id]})),
-    role:NET.dealt&&p&&p.role?AK(p):null,alive:p?p.alive:true,
+    role:(NET.dealt||S.phase==='night'||S.phase==='day'||S.phase==='over')&&p&&p.role?AK(p):null,alive:p?p.alive:true,pk:S.phase==='night'||S.phase==='day'||S.phase==='over'?S.phase:'',
     ph:S.phase==='night'?'第 '+S.round+' 夜':S.phase==='day'?'第 '+S.round+' 天':S.phase==='over'?'遊戲結束':'',over:S.phase==='over'?S.result:''}}
 function netPush(){if(NET.mode!=='host')return;clearTimeout(pushT);pushT=setTimeout(function(){
   if(NET.dealt&&S.players.every(p=>!p.role)){NET.dealt=false;netSave()}
@@ -993,7 +1003,7 @@ function vRoom(){if(NET.mode!=='host')return '<h2>連線發牌</h2><p class="not
     +'<div class="row"><button class="btn" data-n="share">分享連結</button></div>'
     +(S.players.length?'<div class="plist">'+S.players.map(p=>{const tk=ow[p.id],on=tk&&conns[tk]&&conns[tk].open;
       return '<span class="'+(tk?on?'on':'off':'')+'"><b>'+p.id+'</b><em>'+(tk?esc(NET.names[tk]||'（沒填名字）')+(on?'':'・離線'):'空位')+'</em>'+(tk?'<button data-n="kick" data-p="'+p.id+'" aria-label="請出 '+p.id+'號">✕</button>':'')+'</span>'}).join('')+'</div>'
-      +'<p class="note">已入座 '+Object.keys(ow).length+'／'+S.players.length+'。發牌前先核對名單，不認識的人按 ✕ 請出去。'+(NET.dealt?'已發牌，玩家手機上看得到自己的身份。':un?'先在座位與發牌頁按「隨機發牌」（或手動指定），再發到手機。':'身份都排好了，可以發到手機。')+'</p>'
+      +'<p class="note">已入座 '+Object.keys(ow).length+'／'+S.players.length+'。發牌前先核對名單，不認識的人按 ✕ 請出去。'+(NET.dealt?'已發牌，玩家手機上看得到自己的身份。':un?'先在座位與發牌頁按「隨機發牌」（或手動指定），再發到手機。沒按的話，開始第一夜後，已記錄身份的座位也會自動送出。':'身份都排好了，可以發到手機；直接開始第一夜也會自動送出。')+'</p>'
       +'<div class="row">'+(NET.dealt?'<button class="btn" data-n="undeal">收回手機上的牌</button>':'<button class="btn pri" data-n="dealNet"'+(un?' disabled':'')+'>發牌到玩家手機</button>')+'</div>':'<p class="note">先到「座位與發牌」頁，玩家才能選座位。</p>')
     +(inAssign||NET.dealt?'':'<p class="note w">遊戲已開始，玩家不能再換座位。</p>')
     +'<div class="row"><button class="btn red" data-n="hostClose">關閉房間</button><button class="btn pri" data-a="close">完成</button></div>'}
@@ -1001,22 +1011,27 @@ function vRoom(){if(NET.mode!=='host')return '<h2>連線發牌</h2><p class="not
 /* 玩家端。主機送來的資料也不直接信：只留已知的欄位，型別和範圍都檢查過才拿去畫 */
 function pvClean(d){if(!d||typeof d!=='object'||d.t!=='state'||!Array.isArray(d.seats))return null;const n=Math.min(30,d.seats.length);
   const seat=Number.isInteger(d.seat)&&d.seat>=1&&d.seat<=n?d.seat:0,role=typeof d.role==='string'&&(ROLES[d.role]||d.role==='wolfyb2')&&FX[d.role]?d.role:null;
-  return{n:n,seat:seat,role:role,lock:!!d.lock,alive:d.alive!==false,name:clean(d.name),ph:String(d.ph||'').slice(0,12),over:String(d.over||'').slice(0,60),
+  return{n:n,seat:seat,role:role,lock:!!d.lock,alive:d.alive!==false,name:clean(d.name),ph:String(d.ph||'').slice(0,12),pk:d.pk==='night'||d.pk==='day'||d.pk==='over'?d.pk:'',over:String(d.over||'').slice(0,60),
     seats:d.seats.slice(0,n).map((q,i)=>({id:i+1,name:clean(q&&q.name),taken:!!(q&&q.taken)}))}}
 function playerConnect(){netKill();netSt='連線中…';
   lib(PEERJS,()=>window.Peer).then(function(){if(NET.mode!=='player'||!NET.code)return;const my=peer=new Peer();
     const again=function(){if(peer!==my)return;clearTimeout(retryT);retryT=setTimeout(function(){if(NET.mode==='player'&&NET.code)playerConnect()},3500)};
     my.on('open',function(){if(peer!==my)return;const cn=pconn=my.connect(roomId(NET.code),{reliable:true});
       cn.on('open',function(){if(peer!==my)return;netSt='ok';cn.send({t:'hello',token:NET.token,name:NET.name});soft()});
-      cn.on('data',function(d){if(peer!==my)return;const v=pvClean(d);if(!v)return;PV=v;netSt='ok';soft()});
+      cn.on('data',function(d){if(peer!==my)return;const v=pvClean(d);if(!v)return;const o=PV;PV=v;netSt='ok';
+        if(v.role!==(o&&o.role)){tilt.rx=0;tilt.ry=tilt.base=180;tilt.o=null}
+        if(o){if(v.pk!==o.pk||v.ph!==o.ph){if(v.pk==='night')announce('moon','天黑請閉眼',v.ph);else if(v.pk==='day')announce('sun','天亮了',v.ph);else if(v.pk==='over')announce('','遊戲結束',v.over)}
+          else if(o.alive&&!v.alive)announce('','你已出局','請保持安靜，不要透露身份');
+          else if(!o.role&&v.role)announce('','發牌了','點一下卡片看你的身份')}
+        soft()});
       cn.on('close',function(){if(peer!==my)return;netSt='連線中斷，重新連線中…';soft();again()})});
     my.on('error',function(e){if(peer!==my)return;netSt=e.type==='peer-unavailable'?'找不到房間 '+NET.code+'。確認房號，並請裁判停在裁判台頁面。自動重試中…':'連線失敗，自動重試中…';soft();again()});
     my.on('disconnected',function(){if(peer!==my)return;netSt='連線中斷，重新連線中…';soft();again()});
   }).catch(function(){netSt='連線元件載入失敗，請確認網路';soft();clearTimeout(retryT);retryT=setTimeout(function(){if(NET.mode==='player'&&NET.code)playerConnect()},4000)});}
 function psend(m){try{if(pconn&&pconn.open)pconn.send(m)}catch(e){}}
-function playerLeave(){psend({t:'leave'});NET={mode:null};netSave();PV=null;netSt='';holdOn=false;setTimeout(netKill,200);
+function playerLeave(){psend({t:'leave'});NET={mode:null};netSave();PV=null;netSt='';setTimeout(netKill,200);
   try{history.replaceState(null,'',location.pathname)}catch(e){}}
-function vPlayer(){const hd=t=>'<header class="bar"><h1><span class="ttl">'+t+'</span></h1><button class="btn sm" data-n="leave">離開</button></header>';
+function vPlayer(){const hd=t=>'<header class="bar"><h1>'+(PV&&PV.pk&&ICON[PV.pk==='day'?'sun':'moon']&&PV.pk!=='over'?'<span class="orb">'+ICON[PV.pk==='day'?'sun':'moon']+'</span>':'')+'<span class="ttl">'+t+'</span></h1><button class="btn sm" data-n="leave">離開</button></header>';
   if(!NET.code)return hd('加入房間')+'<section class="card"><h2>輸入房號</h2><p class="note">房號在裁判的手機上，四個數字。也可以直接用相機掃裁判畫面上的 QR code。</p>'
     +'<label class="field">房號<input id="j-code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="例如 4821"></label>'
     +'<label class="field">你的名字<input id="j-name" maxlength="12" autocomplete="off" placeholder="讓裁判認得你" value="'+esc(NET.name||'')+'"></label>'
@@ -1026,9 +1041,10 @@ function vPlayer(){const hd=t=>'<header class="bar"><h1><span class="ttl">'+t+'<
   if(v.role&&v.seat){const r=RI(v.role),me=v.seats[v.seat-1]||{};
     return hd('房間 '+NET.code)+st+'<section class="card"><h2>'+v.seat+'號'+(v.name?'・'+esc(v.name):'')+'<small>'+esc(v.ph||'等待開始')+'</small></h2>'
       +(v.alive===false?'<p class="note w">你已出局。</p>':'')+(v.over?'<p class="say">'+esc(v.over)+'</p>':'')
-      +'<div class="pwrap'+(holdOn?' show':'')+'"><div class="pstage"><div class="c3d"><i class="cf av-'+v.role+'"></i><i class="cb av-back"></i></div></div>'
-      +'<div class="pinfo"><h2 class="c-'+r.t+'" style="text-align:center">'+r.n+'<small class="ct">'+TEAM[r.t]+'</small></h2><p class="say" style="margin:0">'+FX[v.role]+'</p></div></div>'
-      +'<p class="note" style="text-align:center">按住卡片看牌，放開就蓋回去。確認旁邊沒人看得到螢幕。</p></section>'}
+      +'<div class="pwrap'+(faceUp()?' show':'')+'"><div class="stage3d"><div class="c3d" style="transform:rotateX('+tilt.rx.toFixed(2)+'deg) rotateY('+tilt.ry.toFixed(2)+'deg)"><i class="cf av-'+v.role+'"><u class="gl"></u></i><i class="cb av-back"></i></div></div>'
+      +'<div class="pinfo"><h2 class="c-'+r.t+'">'+r.n+'<small class="ct">'+TEAM[r.t]+'</small></h2><p class="say" style="margin:0">'+FX[v.role]+'</p></div></div>'
+      +'<p class="note" style="text-align:center">點一下卡片翻面，拖曳可以旋轉。看完記得翻回牌背，確認旁邊沒人看得到螢幕。</p>'
+      +(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'&&!motionOn?'<div class="row"><button class="btn sm" data-m="motion">開啟手機晃動連動</button></div>':'')+'</section>'}
   const lock=v.lock;
   return hd('房間 '+NET.code)+st+'<section class="card"><h2>你的名字</h2><label class="field"><input id="p-nm" data-nc="pname" maxlength="12" autocomplete="off" placeholder="讓裁判認得你" value="'+esc(v.name||NET.name||'')+'"></label></section>'
     +'<section class="card"><h2>選座位<small>'+(v.seat?'你是 '+v.seat+'號':'還沒選')+'</small></h2>'
@@ -1054,10 +1070,11 @@ document.addEventListener('click',function(ev){const el=ev.target.closest&&ev.ta
   render()});
 document.addEventListener('change',function(ev){const el=ev.target;if(!el.getAttribute||el.getAttribute('data-nc')!=='pname')return;
   NET.name=clean(el.value);netSave();psend({t:'name',name:NET.name});render()});
-document.addEventListener('pointerdown',function(e){if(e.target.closest&&e.target.closest('.pstage')){holdOn=true;const w=document.querySelector('.pwrap');if(w)w.classList.add('show')}});
-function holdEnd(){if(!holdOn)return;holdOn=false;const w=document.querySelector('.pwrap');if(w)w.classList.remove('show')}
-document.addEventListener('pointerup',holdEnd);document.addEventListener('pointercancel',holdEnd);
-document.addEventListener('visibilitychange',function(){if(document.visibilityState!=='visible')holdEnd()});
+/* 玩家手機上的階段提示：畫面正中間跳一張牌子，兩秒多後自己離開 */
+let annT=0;
+function announce(ic,title,sub){const el=document.getElementById('ann');if(!el)return;clearTimeout(annT);el.classList.remove('on');
+  el.innerHTML='<div class="annb">'+(ICON[ic]||'')+'<b>'+esc(title)+'</b>'+(sub?'<small>'+esc(sub)+'</small>':'')+'</div>';
+  void el.offsetWidth;el.classList.add('on');annT=setTimeout(function(){el.classList.remove('on');el.innerHTML=''},2600)}
 function netBoot(){netLoad();const rm=(new URLSearchParams(location.search).get('room')||'').replace(/\D/g,'').slice(0,4);
   if(rm.length===4&&!(NET.mode==='host'&&NET.code===rm)){const same=NET.mode==='player';
     NET={mode:'player',code:rm,token:(same&&NET.token)||tok(),name:(same&&NET.name)||''};netSave()}
