@@ -632,6 +632,46 @@ the ring only.
 
 </details>
 
+## 座位頭像的徽章
+
+座位上的小頭像不是從牌面裁出來的。這個畫法的人物是淺色、沒有五官，縮成小圓後好人牌幾乎都是一團米白，認不出來。所以每個角色另外產一枚徽章：主色圓底加一個白色符號，和牌面頂部那排圓章是同一套。
+
+產的時候附上**該角色自己的牌**當參考圖，徽章的顏色才會和牌一致。`{symbol}` 填下表的符號。
+
+```text
+Use the attached card only as a colour and style reference. Create a round emblem icon in the same style as
+the small round medallions on that card: a square image filled edge to edge by one flat disc in the card's
+dominant hue, with a thin lighter knot-work ring just inside the edge, and in the centre one single bold,
+simple, solid white symbol: {symbol}. The symbol is large, fills most of the disc, and is extremely simple so
+it stays readable at 24 pixels. Completely flat, no gradients, no shading, no texture, no small details, no
+extra ornaments, no character, no face. Absolutely no text, letters, runes, glyphs, numbers, logos or
+watermarks anywhere in the image.
+```
+
+| 角色 | 符號 |
+|---|---|
+| 預言家 | a crystal ball on a small stand with a four-point star inside |
+| 女巫 | a round-bottomed potion bottle with a cork |
+| 獵人 | a rifle scope crosshair |
+| 守衛 | a kite shield with a plain cross |
+| 白痴 | a two-pointed jester's cap with bells |
+| 騎士 | an upright longsword |
+| 黑市商人 | a pair of balance scales |
+| 平民 | a sheaf of wheat |
+| 狼人 | a wolf head facing forward |
+| 狼兄 | a large wolf paw print |
+| 狼弟 | a small hooded cloak hood with two pointed wolf ears poking through |
+| 狼弟・覺醒 | a snarling wolf head in profile with open jaws and sharp fangs, with one small crimson eye |
+| 狼王 | a jagged crown |
+| 白狼王 | an eight-point starburst explosion |
+| 狼美人 | a rose seen from above |
+
+```bash
+python3 tools/gen_art.py icon_角色代號
+```
+
+符號要挑輪廓單純、彼此差異大的，因為實際只顯示 28 像素左右。
+
 ## 怎麼加一張新牌
 
 1. 在 `tools/gen_art.py` 的 `ROLES` 加一行，照現有的寫法給：白天或晚上（`DAY`／`NIGHT`）、人臉或狼臉、主色、四種小圖案、人物描述。
@@ -647,7 +687,7 @@ python3 tools/gen_art.py 新角色代號
 python3 tools/build.py
 ```
 
-5. 在 `werewolf-judge.html` 的 `FACE` 表加上這張牌頭部中心的位置（佔牌面寬、高的百分比），座位上的小頭像才裁得到臉。
+5. 在 `tools/gen_art.py` 的 `ICONS` 加上這個角色的符號，產一枚徽章（見上一節），座位上的小頭像會用它。
 6. 底部橫幅的位置不用手動量，`build.py` 會從圖上量出來，名字自動對位。
 
 金鑰從 `OPENAI_API_KEY` 環境變數讀，不要寫進任何檔案。
@@ -673,13 +713,13 @@ python3 tools/build.py
 - **底部橫幅一定要寫「留白」**，並在結尾重複一次不要任何文字。模型產的字是亂碼，名字由網頁疊上去。
 - **內容審查會擋某些人物描述。** 遇過的是「young … priestess」加上長袍的組合。改成不提年紀、把服裝寫得端莊具體就過了。被擋時先換人物描述的用詞，不要動畫法的部分。
 - **每張牌的橫幅高低會差一兩個百分點**，所以名字不能用固定位置，要逐張量。
-- **縮成小頭像會不好認。** 人物是淺色又沒有五官，好人牌的頭像幾乎都是一團米白。這是這個畫法的代價。
+- **不要從牌面裁頭像。** 人物是淺色又沒有五官，縮小後好人牌幾乎都是一團米白。改成每個角色一枚專屬徽章才認得出來。
 
 ## 圖檔放哪裡
 
 | 位置 | 內容 |
 |---|---|
-| `art/*.png`、`art/ui/*.png` | 現用的原圖。不進版控，只在本機 |
+| `art/*.png`、`art/ui/*.png`、`art/icons/*.png` | 現用的原圖（牌、介面圖、徽章）。不進版控，只在本機 |
 | `art/v1/` | 第一版（手繪水粉風）的舊圖 |
 | `art/v2_ui_first/` | 第二版最初那批介面圖（和牌面不一致，已換掉） |
 | `art/samples/` | 五輪試產的樣張 |

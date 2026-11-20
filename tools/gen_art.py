@@ -133,12 +133,32 @@ UI = {
                 "Very simple and bold so it reads at small size; thin tone-on-tone outlines, a little gold on the ring only."),
 }
 
+# 座位上的小頭像：不從牌面裁頭（淺色無臉的人物縮小後認不出來），改成每個角色一枚徽章。
+# 主色圓底＋一個白色符號，和牌面頂部那排圓章同一套語彙。拿該角色自己的牌當參考圖，顏色才會一致。
+ICON_PROMPT = (
+    "Use the attached card only as a colour and style reference. Create a round emblem icon in the same style as the small round medallions on that card: "
+    "a square image filled edge to edge by one flat disc in the card's dominant hue, with a thin lighter knot-work ring just inside the edge, "
+    "and in the centre one single bold, simple, solid white symbol: {symbol}. "
+    "The symbol is large, fills most of the disc, and is extremely simple so it stays readable at 24 pixels. Completely flat, no gradients, no shading, no texture, "
+    "no small details, no extra ornaments, no character, no face. " + NO_TEXT
+)
+ICONS = {
+    "seer": "a crystal ball on a small stand with a four-point star inside", "witch": "a round-bottomed potion bottle with a cork",
+    "hunter": "a rifle scope crosshair", "guard": "a kite shield with a plain cross", "idiot": "a two-pointed jester's cap with bells",
+    "knight": "an upright longsword", "merchant": "a pair of balance scales", "villager": "a sheaf of wheat",
+    "wolf": "a wolf head facing forward", "wolfbro": "a large wolf paw print", "wolfyb": "a small hooded cloak hood with two pointed wolf ears poking through",
+    "wolfyb2": "a snarling wolf head in profile with open jaws and sharp fangs, with one small crimson eye", "wolfking": "a jagged crown",
+    "whitewolf": "an eight-point starburst explosion", "beauty": "a rose seen from above",
+}
+
 def _post(url, data, headers):
     req = urllib.request.Request(url, data=data, headers=dict(headers, Authorization="Bearer " + os.environ["OPENAI_API_KEY"]))
     with urllib.request.urlopen(req, timeout=420) as r:
         return base64.b64decode(json.load(r)["data"][0]["b64_json"])
 
 def path_of(name):
+    if name.startswith("icon_"):
+        return os.path.join(OUT, "icons", name[5:] + ".png")
     return os.path.join(OUT, "ui", name + ".png") if name in UI else os.path.join(OUT, name + ".png")
 
 def gen(name):
@@ -147,8 +167,10 @@ def gen(name):
         return name, "已存在，跳過"
     os.makedirs(os.path.dirname(path), exist_ok=True)
     try:
-        if name in EDITS or name in UI:
-            if name in EDITS:
+        if name in EDITS or name in UI or name.startswith("icon_"):
+            if name.startswith("icon_"):
+                refs, size, prompt = [name[5:]], "1024x1024", ICON_PROMPT.format(symbol=ICONS[name[5:]])
+            elif name in EDITS:
                 src, prompt = EDITS[name]; refs, size = [src], "1024x1536"
             else:
                 size, refs, prompt = UI[name]
@@ -176,7 +198,7 @@ def gen(name):
 if __name__ == "__main__":
     if not os.environ.get("OPENAI_API_KEY"):
         sys.exit("找不到 OPENAI_API_KEY 環境變數。")
-    ALL = list(ROLES) + list(UI) + list(EDITS)
+    ALL = list(ROLES) + list(UI) + list(EDITS) + ["icon_" + k for k in ICONS]
     want = [a for a in sys.argv[1:] if not a.startswith("--")] or ALL
     bad = [r for r in want if r not in ALL]
     if bad:

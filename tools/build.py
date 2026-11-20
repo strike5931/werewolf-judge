@@ -65,6 +65,12 @@ with tempfile.TemporaryDirectory() as tmp:
         if m:
             ban[role] = [m[0], 1 if m[1] else 0]
         print("%-10s %3d KB  橫幅 %s" % (role, len(raw) // 1024, m if m else "量不到，用預設位置"))
+    # 座位上的小徽章：每個角色一枚，存成 i_<角色>
+    for png in sorted(glob.glob(os.path.join(ROOT, "art", "icons", "*.png"))):
+        role = os.path.splitext(os.path.basename(png))[0]
+        jpg = os.path.join(tmp, "i_" + role + ".jpg")
+        subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "72", "-Z", "112", png, "--out", jpg], check=True, capture_output=True)
+        art["i_" + role] = "data:image/jpeg;base64," + base64.b64encode(open(jpg, "rb").read()).decode()
     # 介面用圖：場景與勝利圖壓成橫幅，卡背同角色卡，主畫面圖示只給 index.html 用
     UIMAP = {"night": ("_night", "800", "55"), "day": ("_day", "800", "55"), "win_good": ("_good", "800", "58"),
              "win_wolf": ("_evil", "800", "58"), "cardback": ("_back", "540", "62")}
