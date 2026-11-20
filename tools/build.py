@@ -25,6 +25,36 @@ try:
 except Exception:
     specs = {}
 
+def plate_banner(png):
+    """在「空牌層」上找橫幅。空牌中間大片留白，不能像 banner() 那樣找最長的平坦區（會選到留白）。
+    改成把最下方切成一段段「顏色平坦且同色」的區間，取夠高（3% 以上）的區間裡最靠下的那一段：橫幅是外框之前最後一條色帶。"""
+    try:
+        from PIL import Image
+    except ImportError:
+        return None
+    im = Image.open(png).convert("RGB"); W, H = im.size
+    xs = list(range(int(W * .30), int(W * .42), 5)) + list(range(int(W * .58), int(W * .70), 5))
+    rows = []
+    for y in range(int(H * .80), int(H * .995)):
+        px = [im.getpixel((x, y)) for x in xs]
+        mean = [sum(c[i] for c in px) / len(px) for i in range(3)]
+        rows.append((y, sum(sum(abs(c[i] - mean[i]) for c in px) / len(px) for i in range(3)), mean))
+    runs = []; i = 0
+    while i < len(rows):
+        if rows[i][1] < 16:
+            j = i
+            while j + 1 < len(rows) and rows[j + 1][1] < 16 and sum(abs(rows[j + 1][2][c] - rows[i][2][c]) for c in range(3)) < 40:
+                j += 1
+            runs.append((i, j)); i = j + 1
+        else:
+            i += 1
+    runs = [r for r in runs if (rows[r[1]][0] - rows[r[0]][0]) / H * 100 >= 3]
+    if not runs:
+        return None
+    a, b = runs[-1]; t, bt = rows[a][0] / H * 100, rows[b][0] / H * 100
+    r, g, bl = rows[(a + b) // 2][2]
+    return round((t + bt) / 2, 1), (0.299 * r + 0.587 * g + 0.114 * bl) > 165
+
 def sway_mask(blobs, pins=(), W=180, H=270):
     """把「哪些部位會飄」畫成一張小圖給著色器用。每個像素三個值：
     R＝擺動幅度（根部 0，越往末端越大）、G＝相位（讓波從根部往末端傳，各部位也不同步）、B＝擺動方向（和部位走向垂直）。"""
@@ -124,7 +154,12 @@ with tempfile.TemporaryDirectory() as tmp:
         art["p_" + role] = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode(); kb = len(buf.getvalue()) // 1024
         im = Image.open(fig).convert("RGBA").resize((540, 810), Image.LANCZOS)
         # 人物的下襬在橫幅上緣之前淡出，才不會蓋住橫幅和上面的名字
-        top = (ban[role][0] - 3.4 if role in ban else 90.0) / 100 * 810; a = im.getchannel("A"); ap = a.load()
+        # 動態牌顯示的是「空牌層」，它是 AI 重畫的，橫幅位置和原牌差一點。
+        # 所以名字和人物下襬的淡出，都要用空牌層量到的位置（空牌層本身不放大、不位移，名字才對得準）
+        pm = plate_banner(plate)
+        if pm:
+            ban[role] = [pm[0], 1 if pm[1] else 0]
+        top = (ban[role][0] - 3.6 if role in ban else 90.0) / 100 * 810; a = im.getchannel("A"); ap = a.load()
         for y in range(int(top - 46), 810):
             k = max(0.0, min(1.0, (top - y) / 46.0))
             for x in range(540):
