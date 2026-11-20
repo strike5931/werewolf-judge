@@ -54,6 +54,10 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .chip.dead .av{filter:grayscale(1);opacity:.45}
 .av.av-back{background-size:cover;background-position:center;border-radius:5px;width:1.3rem;margin:0 .225rem}
 .seg .btn{flex:1 1 0}
+.vx{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;margin-left:8px;vertical-align:middle;border-radius:50%;background:var(--surface2);border:1px solid var(--line);color:var(--moon);padding:0;font-size:.7rem;line-height:1}
+.vx::before{content:"▶";margin-left:2px}
+.vx.on{background:var(--moon);color:var(--on-moon)}
+.vx.on::before{content:"■";margin-left:0}
 .lk{background:none;border:0;padding:0 2px;color:var(--moon);text-decoration:underline;font:inherit}
 .lk:disabled{color:var(--muted);text-decoration:none}
 .roomno{font-size:3rem;letter-spacing:.25em;text-indent:.25em}
@@ -362,6 +366,8 @@ const ART={"beauty":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAASABIAAD/4QBMRXhp
 const BAN={"beauty":[94.4,0],"guard":[91.5,0],"hunter":[93.0,0],"idiot":[93.6,0],"knight":[94.8,0],"merchant":[92.6,0],"seer":[94.3,0],"villager":[92.7,1],"whitewolf":[93.9,0],"witch":[92.2,0],"wolf":[93.2,0],"wolfbro":[93.9,0],"wolfking":[94.0,0],"wolfyb":[93.5,0],"wolfyb2":[93.8,0]};/*BAN*/
 /* 動態牌面的設定（例如羽毛從哪裡掉），由 tools/build.py 依 tools/live_specs.json 寫入 */
 const LIVE={"beauty":{"feathers":0},"guard":{"feathers":0},"hunter":{"feathers":0},"idiot":{"feathers":0},"knight":{"feathers":0},"merchant":{"feathers":0},"seer":{"feathers":1},"villager":{"feathers":0},"whitewolf":{"feathers":0},"witch":{"feathers":0},"wolf":{"feathers":0},"wolfbro":{"feathers":0},"wolfking":{"feathers":0},"wolfyb2":{"feathers":0},"wolfyb":{"feathers":0}};/*LIVE*/
+/* 有預錄語音的台詞（念出來的字的雜湊），由 tools/build.py 依 audio/ 資料夾寫入 */
+const VOX=["024ee1c1","0d137416","18b8bbcd","1aaf6da4","1dbc7916","2a3b58ed","2d1f2114","35d6a7e7","3f6fa3c8","40f27869","4367b2e5","4869ec7b","4bc1892e","4ee79e01","560ef187","5bfe9db8","624714d7","65ad552a","717e74ed","75c19ad9","765f2829","794bb8ce","7b5226d4","7d15a3eb","8361edd9","83c197f7","85918e9e","8bf3ef62","90727a6a","9122d0d3","9d27e869","9d4907f8","a2be7141","a33e4767","a3f6fd95","a629eb17","a79b9ac8","af1fa447","b59a644e","b8f72487","bb45a262","bb6ee9f3","c167e6ba","c92c5581","c9c90726","d65d2bd4","d98f2ba5","dc48c687","dd009019","e416f398","e5ad1f95","e668eeeb","f8e34fbe"];/*VOX*/
 const KEY='wwj-state-v1';
 let S,H=[];
 
@@ -574,6 +580,7 @@ function vSetup(){const c=S.cfg,tot=total(),ok=tot===c.n&&Object.keys(ROLES).som
   +'<label class="field">幸運兒的查驗<select id="r-crystal" data-c="rule" data-p="crystal">'+opt('crystal','once','只能查驗一次')+opt('crystal','every','每晚都能查驗')+'</select></label>':'')
   +'</section>'
   +'<section class="card"><h2>外觀</h2>'+themeRow()+'</section>'
+  +'<section class="card"><h2>語音念稿</h2><p class="note">台詞旁會出現播放鍵，按了就念那一句。開「自動念」的話，每進到下一步會自動念第一句；「請閉眼」這類收尾的句子仍要自己按。</p>'+voiceRow()+'</section>'
   +foot('<button class="btn pri" data-a="toAssign"'+(ok?'':' disabled')+'>'+(ok?'下一步：座位與發牌':'卡牌需等於人數，且至少一張狼牌')+'</button>')}
 
 /* ---------- 畫面：發牌 ---------- */
@@ -765,7 +772,7 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
       +'<div class="row"><button class="btn" data-a="setRole" data-p="'+p.id+':"'+(p.role?'':' disabled')+'>清除身份</button><button class="btn pri" data-a="close">完成</button></div>';
   }else if(s.type==='menu'){const g=S.phase==='night'||S.phase==='day';
     h='<h2>選單</h2>'+(S.test?'<button class="btn pri" data-a="endTest">結束測試，回到原本的局</button>':'')+'<button class="btn" data-a="open" data-p="log">本局紀錄</button><button class="btn" data-a="open" data-p="cheat">裁判小抄</button><button class="btn" data-a="open" data-p="cards">卡牌圖鑑</button><button class="btn" data-a="open" data-p="room">連線房間'+(NET.mode==='host'?'（'+NET.code+'）':'')+'</button>'
-      +''+themeRow()+'<button class="btn" data-a="timer">發言計時器</button><button class="btn" data-a="open" data-p="tests">快速測試</button>'
+      +''+themeRow()+voiceRow()+'<button class="btn" data-a="timer">發言計時器</button><button class="btn" data-a="open" data-p="tests">快速測試</button>'
       +(g?'<button class="btn" data-a="end">結束遊戲，公布身份</button><button class="btn" data-a="again">重新開始（同配置、同座位）</button>':'')
       +(S.phase!=='setup'?'<button class="btn" data-a="toSetup">回到配置設定</button>':'')
       +'<p class="note">所有操作都能用「復原」退回，包含重新開始。</p><button class="btn pri" data-a="close">關閉</button>';
@@ -803,7 +810,7 @@ function vSheet(){const s=S.sheet;if(!s&&!S.view)return'';let h='';
 
 let toastT=null;
 function toast(m){const el=document.getElementById('toast');el.textContent=m;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){el.hidden=true},1600)}
-function render(){render0();liveAttach()}
+function render(){render0();liveAttach();voiceDecorate()}
 function render0(){themeApply();if(NET.mode==='player'){document.getElementById('app').innerHTML=vPlayer();
     const pk=PV&&PV.pk==='day'?'_day':'_night';if(sceneKey!==pk){sceneKey=pk;document.getElementById('scene').style.backgroundImage=ART[pk]?'url('+ART[pk]+')':'none'}return}
   const v={setup:vSetup,assign:vAssign,night:vNight,day:vDay,over:vOver}[S.phase]();
@@ -1275,6 +1282,7 @@ function vPlayer(){const hd=t=>'<header class="bar"><h1>'+(PV&&PV.pk&&ICON[PV.pk
 document.addEventListener('click',function(ev){const el=ev.target.closest&&ev.target.closest('[data-n]');if(!el||el.disabled)return;wake();
   const a=el.getAttribute('data-n'),p=el.getAttribute('data-p');
   if(a==='theme'){THEME=p;try{localStorage.setItem(TKEY,p)}catch(e){}themeApply()}
+  else if(a==='voice'||a==='vauto'){if(a==='voice'){VOICE=p;if(p==='off')VAUTO=false}else VAUTO=!VAUTO;voiceStop();try{localStorage.setItem(VKEY,JSON.stringify({v:VOICE,a:VAUTO}))}catch(e){}}
   else if(a==='mode'){if(p==='cards'||p==='phone'||p==='online'){NET.play=p;netSave();netPush()}}
   else if(a==='pact'){const x=p.split('|');if((x[0]==='check'||x[0]==='lcheck')&&pend!==p){pend=p}else{pend='';psend({t:'act',a:x[0],p:x[1]})}}
   else if(a==='pzGo'){const ig=NET.ignore||(NET.ignore={});pausedSeats().forEach(x=>{ig[x.id]=1;if(x.left&&NET.gone)delete NET.gone[x.id]});netSave();netPush();toast('繼續遊戲')}
@@ -1304,6 +1312,32 @@ function netBoot(){netLoad();const rm=(new URLSearchParams(location.search).get(
   if(rm.length===4&&!(NET.mode==='host'&&NET.code===rm)){const same=NET.mode==='player';
     NET={mode:'player',code:rm,token:(same&&NET.token)||tok(),name:(NET.mode!=='host'&&NET.name)||''};netSave()}
   if(NET.mode==='host')hostOpen();else if(NET.mode==='player'&&NET.code)playerConnect()}
+
+/* ---------- 語音念稿 ----------
+   台詞是預先錄好的音檔（audio/<聲線>/<雜湊>.mp3），不是即時合成。畫面上每句台詞，去掉括號裡的手勢說明後算雜湊，
+   有對應音檔的就在句尾加一顆播放鍵。兩種聲線可切換；開了「自動念」就在往下一步時念該步驟的第一句。 */
+const VKEY='wwj-voice',VOXSET=new Set(VOX),VALIAS={'（毒藥已用完，照樣詢問並停頓）':'你有一瓶毒藥，要用嗎？要毒誰？'};
+let VOICE='girl',VAUTO=false,vAudio=null,vNow='',vLast=null;
+try{const d=JSON.parse(localStorage.getItem(VKEY));if(d&&(d.v==='off'||d.v==='girl'||d.v==='lady')){VOICE=d.v;VAUTO=!!d.a}}catch(e){}
+function vhash(t){let h=2166136261;for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return('0000000'+h.toString(16)).slice(-8)}
+const spoken=t=>{t=t.trim();return VALIAS[t]||t.replace(/（[^）]*）/g,'').trim()};
+function voiceRow(){return '<div class="row seg">'+[['off','語音關'],['girl','少女聲'],['lady','成熟聲']].map(o=>'<button class="btn sm'+(VOICE===o[0]?' sel':'')+'" data-n="voice" data-p="'+o[0]+'">'+o[1]+'</button>').join('')
+  +'<button class="btn sm'+(VAUTO?' sel':'')+'" data-n="vauto"'+(VOICE==='off'?' disabled':'')+'>自動念</button></div>'}
+function voiceStop(){if(vAudio){try{vAudio.pause()}catch(e){}}vNow='';document.querySelectorAll('.vx.on').forEach(e=>e.classList.remove('on'))}
+function voicePlay(h){if(vNow===h){voiceStop();return}voiceStop();if(VOICE==='off')return;
+  if(!vAudio){vAudio=new Audio();vAudio.addEventListener('ended',voiceStop);vAudio.addEventListener('error',function(){if(vNow){voiceStop();toast('語音檔載入失敗（私人預覽頁沒有音檔，請用公開網站）')}})}
+  vNow=h;vAudio.src='audio/'+VOICE+'/'+h+'.mp3';const pr=vAudio.play();if(pr&&pr.catch)pr.catch(function(){voiceStop()});
+  document.querySelectorAll('.vx[data-v="'+h+'"]').forEach(e=>e.classList.add('on'))}
+/* 每次重繪後：替有音檔的台詞加上播放鍵；步驟往前時視設定自動念第一句 */
+function voiceDecorate(){if(NET.mode==='player')return;const on=VOICE!=='off';let first='';
+  if(on)document.querySelectorAll('#app > section p.say').forEach(p=>{const h=vhash(spoken(p.textContent));if(!VOXSET.has(h))return;if(!first)first=h;
+    const b=document.createElement('button');b.className='vx'+(vNow===h?' on':'');b.setAttribute('data-v',h);b.setAttribute('aria-label','念這一句');p.appendChild(b)});
+  const k={ph:S.phase,r:S.round,s:S.phase==='night'?S.step:0},pv=vLast;vLast=k;
+  if(!pv||(pv.ph===k.ph&&pv.r===k.r&&pv.s===k.s))return;
+  /* 往前才念：換到下一輪、同一輪裡夜晚進白天或從發牌進第一夜、同一夜裡步驟變大。按上一步或復原不念 */
+  const fwd=k.r>pv.r||(k.r===pv.r&&(k.ph!==pv.ph?(k.ph!=='night'||pv.ph!=='day'):k.s>pv.s));
+  if(vNow)voiceStop();if(on&&VAUTO&&fwd&&first&&(k.ph==='night'||k.ph==='day'))voicePlay(first)}
+document.addEventListener('click',function(ev){const b=ev.target.closest&&ev.target.closest('[data-v]');if(b){ev.stopPropagation();voicePlay(b.getAttribute('data-v'))}});
 
 /* ---------- 螢幕恆亮 ---------- */
 let wl=null;

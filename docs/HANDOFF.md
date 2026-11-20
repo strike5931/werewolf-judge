@@ -23,6 +23,8 @@
 | `tools/gen_art.py` | 用 OpenAI 產牌、介面圖、徽章 |
 | `tools/gen_samples.py` | 畫法定案前的試產紀錄，只留作參考 |
 | `tools/gen_poses.py` | 換姿勢、修局部時產候選圖用 |
+| `tools/gen_voice.py` | 用 OpenAI 語音模型產念稿音檔；`--build` 產整套台詞 |
+| `audio/girl/`、`audio/lady/` | 預錄的念稿音檔（少女聲、成熟聲），**進版控**，由 GitHub Pages 直接提供 |
 | `tools/gen_layers.py` | 把牌拆成空牌和人物兩層，給動態牌面用 |
 | `tools/live_specs.json` | 動態牌面的部位設定（哪裡會飄、哪裡不准動） |
 | `tools/e2e/run.mjs` | 無頭瀏覽器端對端測試 |
@@ -98,6 +100,18 @@ open(f,'w',encoding='utf-8').write(s)
 有分層圖的牌，牌面會由 `layers()` 疊成幾層：空牌、星光、背後的羽毛、人物、前面的羽毛。傾斜時 `tiltApply()` 設 `--px`、`--py` 讓各層錯開。
 
 部位飄動是「動態牌面」那一段的 WebGL 程式。整個頁面只有一塊畫布和一個 WebGL 環境，`render()` 每次重繪後由 `liveAttach()` 把畫布搬到新的牌面上。**不要改成每次重繪就建新的畫布**，瀏覽器對 WebGL 環境的數量有上限。沒有 WebGL 或開了減少動態效果時，會退回靜態的人物圖。細節看 [ART.md](ART.md) 的「動態牌面」。
+
+### 語音念稿
+
+台詞是預錄的音檔，不是即時合成，所以執行時不需要金鑰。
+
+- `tools/gen_voice.py` 的 `LINES` 是整套台詞，`--build` 會用兩種聲線各產一份到 `audio/<聲線>/<雜湊>.mp3`。雜湊是「念出來的字」的 FNV-1a，`gen_voice.py` 的 `vhash()` 和網頁的 `vhash()` 算法必須一致。
+- `build.py` 把兩邊都有的雜湊寫進頁面的 `VOX`。
+- 網頁每次重繪後跑 `voiceDecorate()`：畫面上每個 `p.say`，去掉全形括號裡的手勢說明（`spoken()`）後算雜湊，`VOX` 裡有的就在句尾加播放鍵。
+- **改了台詞的字，就要把新句子加進 `LINES` 重跑 `--build`**，否則那句不會有播放鍵。帶座位號碼的句子只預錄了「昨夜，N號玩家死亡。」（1 到 20 號、單人）；多人死亡和「N號玩家，請問你要發動技能嗎？」沒有音檔。
+- 聲線是 OpenAI 的 marin，用舊版模型 `gpt-4o-mini-tts-2025-03-20`（比較聽語氣指令）。這個模型預定 2027 年 1 月下架，之後要加新句子得換模型，聲音可能對不上。
+- 音檔在 `audio/` 是相對路徑，Claude 的私人預覽頁沒有這些檔案，播不了；要用公開網站或本機伺服器測。內容安全政策要有 `media-src 'self'`。
+- 設定存在 `localStorage` 的 `wwj-voice`。
 
 ### 連線（裁判手機當主機）
 

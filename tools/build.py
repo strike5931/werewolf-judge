@@ -15,7 +15,7 @@ HEAD = """<!doctype html>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="狼人殺裁判">
 <meta name="theme-color" content="#10162a">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; connect-src https://0.peerjs.com wss://0.peerjs.com; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; media-src 'self'; connect-src https://0.peerjs.com wss://0.peerjs.com; base-uri 'none'; form-action 'none'">
 <style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
 """
 art = {}
@@ -216,6 +216,11 @@ s, n = re.subn(r"const BAN=.*?;/\*BAN\*/", lambda m: "const BAN=" + json.dumps(b
 assert n == 1, "找不到 BAN 標記"
 s, n = re.subn(r"const LIVE=.*?;/\*LIVE\*/", lambda m: "const LIVE=" + json.dumps(live, separators=(",", ":")) + ";/*LIVE*/", s, count=1, flags=re.S)
 assert n == 1, "找不到 LIVE 標記"
+# 語音：audio/girl 和 audio/lady 兩邊都有的音檔才算數（檔名就是台詞雜湊）
+vox = sorted(set(os.path.basename(p)[:-4] for p in glob.glob(os.path.join(ROOT, "audio", "girl", "*.mp3"))) & set(os.path.basename(p)[:-4] for p in glob.glob(os.path.join(ROOT, "audio", "lady", "*.mp3"))))
+s, n = re.subn(r"const VOX=.*?;/\*VOX\*/", lambda m: "const VOX=" + json.dumps(vox, separators=(",", ":")) + ";/*VOX*/", s, count=1, flags=re.S)
+assert n == 1, "找不到 VOX 標記"
+print("語音 %d 句" % len(vox))
 open(SRC, "w", encoding="utf-8").write(s)
 body = "\n".join(l for l in s.split("\n") if "claude:viewport-fit-sides" not in l)
 open(os.path.join(ROOT, "index.html"), "w", encoding="utf-8").write(HEAD + body + "\n</html>\n")
