@@ -81,6 +81,39 @@ async function testCards() {
   await closeAll(h, p);
 }
 
+/* ───────── 座位名字不殘留 ───────── */
+async function testNames() {
+  console.log('\n【座位名字】離開、關房、開新房後不留舊名字');
+  const h = await newHost(null);
+  const names = async () => (await state(h.page)).players.map(p => p.name).filter(Boolean).join(',');
+  let a = await newPlayer(h.code, '阿明'), b = await newPlayer(h.code, '小華'); await sit(a, 1); await sit(b, 2);
+  ok(await until(async () => await names() === '阿明,小華', '入座'), '兩人入座，裁判座位表出現名字');
+  await nact(a.page, 'leave');
+  ok(await until(async () => await names() === '小華', '離開'), '玩家按離開，他的座位名字清掉');
+  await act(h.page, 'close'); await act(h.page, 'start');
+  await nact(b.page, 'leave');
+  ok(await until(async () => await names() === '', '開始後離開'), '遊戲開始後才離開，名字一樣清掉');
+  await a.ctx.close();
+  // 同一支手機（同一個瀏覽器環境）再加入：先重新入座，再關房開新房
+  await b.page.goto(BASE + '?room=' + h.code); await b.page.waitForSelector('#app');
+  await act(h.page, 'menu'); await act(h.page, 'endGame').catch(() => {});
+  await h.page.evaluate(() => { localStorage.removeItem('wwj-state-v1'); }); await h.page.reload();
+  await act(h.page, 'toAssign'); await act(h.page, 'open', 'room');
+  await b.page.waitForSelector('[data-n="pseat"]:not([disabled])', { timeout: 25000 }); await sit(b, 3);
+  ok(await until(async () => await names() === '小華', '重新入座'), '同一支手機重新入座');
+  await nact(h.page, 'hostClose');
+  ok(await names() === '', '裁判關閉房間，座位名字全部清掉');
+  await h.page.evaluate(() => { const d = JSON.parse(localStorage.getItem('wwj-state-v1')); d.S.players[5].name = '舊名字'; localStorage.setItem('wwj-state-v1', JSON.stringify(d)); }); await h.page.reload();
+  await act(h.page, 'open', 'room'); await nact(h.page, 'hostOpen');
+  await h.page.waitForFunction(() => /已開啟/.test((document.querySelector('.sheet h2') || {}).innerText || ''), null, { timeout: 20000 });
+  ok(await names() === '', '開新房間時，之前殘留在座位上的名字被清空');
+  const code2 = (await net(h.page)).code;
+  await b.page.goto(BASE + '?room=' + code2); await b.page.waitForSelector('[data-n="pseat"]', { timeout: 25000 });
+  ok(await b.page.evaluate(() => [...document.querySelectorAll('[data-n="pseat"] .nm')].every(e => e.innerText === '空位')), '同一支手機加入新房間：所有座位都是空位');
+  ok(await b.page.inputValue('#p-nm') === '小華', '名字欄仍記得上次填的名字，方便直接用');
+  await closeAll(h, b);
+}
+
 /* ───────── 2. 現場沒牌 ───────── */
 async function testPhone() {
   console.log('\n【現場沒牌】手機看牌、跟著階段走，不顯示選項');
@@ -103,6 +136,8 @@ async function testPhone() {
   await gotoStep(h.page, '天亮'); await act(h.page, 'dawn');
   ok(await until(async () => (await text(seer.page)).includes('第 1 天'), '天亮'), '天亮後玩家手機切到「第 1 天」');
   ok(!(await state(h.page)).players[victim - 1].alive, '結算正確：被刀的人出局');
+  await witch.page.close(); await sleep(4000);
+  ok(!(await h.page.$('.veil.pz')), '現場沒牌：有人離線不會暫停遊戲');
   await closeAll(h, wolf, seer, witch);
 }
 
@@ -214,11 +249,68 @@ async function testOnline() {
   await closeAll(h, ...Object.values(P));
 }
 
+/* ───────── 斷線與離開 ───────── */
+async function testPause() {
+  console.log('\n【斷線與離開】線上玩時暫停，房主可以繼續、重開或關閉');
+  const h = await newHost(HEI); await nact(h.page, 'mode', 'online'); await act(h.page, 'close'); await act(h.page, 'deal');
+  const S0 = await state(h.page), seatOf = r => S0.players.find(p => p.role === r).id;
+  const wolf = await newPlayer(h.code, '狼'), seer = await newPlayer(h.code, '預');
+  await sit(wolf, seatOf('wolf')); await sit(seer, seatOf('seer'));
+  await act(h.page, 'start'); await until(() => seer.page.$('.cf.av-seer'), '收到牌');
+  await gotoStep(h.page, '狼人'); await until(() => hasPanel(wolf.page), '狼人面板');
+  const paused = () => h.page.$('.veil.pz'), ptext = () => h.page.evaluate(() => (document.querySelector('.veil.pz') || {}).innerText || '');
+  ok(!(await paused()), '大家都在線時沒有暫停');
+
+  await seer.page.close();
+  ok(await until(paused, '暫停畫面', 20000), '玩家斷線，裁判台跳出「遊戲暫停」');
+  const pt = await ptext();
+  ok(pt.includes(seer.seat + '號') && pt.includes('斷線'), '暫停畫面指出是幾號斷線');
+  ok(pt.includes('繼續遊戲') && pt.includes('重開房間') && pt.includes('關閉房間') && pt.includes(h.code), '暫停畫面有繼續、重開、關閉三個選項，並顯示房號');
+  ok(await until(async () => (await text(wolf.page)).includes('遊戲暫停'), '玩家端暫停'), '其他玩家的手機顯示遊戲暫停');
+  ok(!(await hasPanel(wolf.page)), '暫停期間玩家手機上的選項收起來');
+  seer.page = await seer.ctx.newPage(); await seer.page.goto(BASE);
+  ok(await until(async () => !(await paused()), '自動繼續', 25000), '斷線的人重新連上，自動繼續');
+  ok(await until(() => hasPanel(wolf.page), '面板回來'), '繼續後玩家的選項回來');
+
+  await nact(seer.page, 'leave');
+  ok(await until(async () => (await ptext()).includes('離開了房間'), '離開暫停', 10000), '玩家按離開，裁判台暫停並標示他離開了');
+  await seer.page.goto(BASE + '?room=' + h.code);
+  ok(await until(() => seer.page.$('[data-n="pseat"][data-p="' + seer.seat + '"]:not([disabled])'), '座位開放', 25000), '離開的人用房號再加入，原本的座位開放給他');
+  ok(await seer.page.evaluate(n => [...document.querySelectorAll('[data-n="pseat"]')].filter(e => !e.disabled).length === 1 && n, seer.seat), '其他座位仍然鎖住');
+  await nact(seer.page, 'pseat', seer.seat);
+  ok(await until(async () => !(await paused()), '坐回後繼續', 10000), '坐回原位後自動繼續');
+  ok(await until(() => seer.page.$('.cf.av-seer'), '牌回來'), '坐回去的人重新看到自己的牌');
+
+  await wolf.page.close(); await until(paused, '再次暫停', 20000);
+  await nact(h.page, 'pzGo');
+  ok(await until(async () => !(await paused()), '房主繼續'), '房主按「不等了，繼續遊戲」，暫停解除');
+  ok(await until(async () => !(await text(seer.page)).includes('遊戲暫停'), '玩家端解除'), '玩家手機上的暫停也解除');
+  await act(h.page, 'kill', seatOf('villager'));
+  ok((await state(h.page)).nt.kill === seatOf('villager'), '缺席玩家的選擇由裁判代選');
+  wolf.page = await wolf.ctx.newPage(); await wolf.page.goto(BASE);
+  ok(await until(() => hasPanel(wolf.page), '回來', 25000), '缺席的人之後連回來，照常繼續');
+
+  await seer.page.close(); await until(paused, '第三次暫停', 20000);
+  await nact(h.page, 'pzReopen');
+  await h.page.waitForFunction(() => /已開啟|^$/.test(''), null, { timeout: 1000 }).catch(() => {});
+  // 預言家還沒回來，所以仍在暫停；按繼續後狼人的選項有回來，才能證明狼人已經接上重開後的房間
+  await sleep(6000); await nact(h.page, 'pzGo').catch(() => {});
+  ok(await until(async () => (await net(h.page)).code === h.code && await hasPanel(wolf.page), '重開', 40000), '房主按「重開房間」：房號不變，在線的人自動接回');
+  await wolf.page.close(); await until(paused, '第四次暫停', 20000);
+  await h.page.evaluate(() => document.querySelector('.veil.pz [data-n="hostClose"]').click());
+  ok((await net(h.page)).mode == null && !(await paused()), '在暫停畫面按「關閉房間」：房間關閉，暫停畫面消失');
+  wolf.page = await wolf.ctx.newPage(); await wolf.page.goto(BASE);
+  ok(await until(async () => (await text(wolf.page)).includes('找不到房間'), '玩家端', 30000), '房間關閉後，玩家手機顯示找不到房間');
+  await closeAll(h, wolf, seer);
+}
+
 const only = process.argv[2];
 try {
   if (!only || only === 'cards') await testCards();
+  if (!only || only === 'names') await testNames();
   if (!only || only === 'phone') await testPhone();
   if (!only || only === 'online') await testOnline();
+  if (!only || only === 'pause') await testPause();
 } catch (e) { fail++; fails.push('測試中斷：' + e.message); console.log('\n✗ 測試中斷：' + e.message); }
 await browser.close(); server.close();
 console.log(`\n結果：${pass} 項通過，${fail} 項失敗`); if (fail) { console.log('失敗項目：\n - ' + fails.join('\n - ')); process.exit(1); }

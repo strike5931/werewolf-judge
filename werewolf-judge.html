@@ -66,6 +66,8 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .plist .on{color:var(--fg);border-color:var(--vil)}
 .plist .off{border-style:dashed}
 .pseats{display:grid;grid-template-columns:repeat(auto-fill,minmax(5.2rem,1fr));gap:6px}
+.veil.pz{z-index:40}
+.pzc{border-color:var(--wolf)}
 .note.on{color:var(--fg);border-left:3px solid var(--moon);padding-left:8px}
 .actc{border-color:var(--moon)}
 .actc h3{margin:6px 0 0;font-size:.9rem;color:var(--muted);font-weight:600}
@@ -758,7 +760,7 @@ function toast(m){const el=document.getElementById('toast');el.textContent=m;el.
 function render(){if(NET.mode==='player'){document.getElementById('app').innerHTML=vPlayer();
     const pk=PV&&PV.pk==='day'?'_day':'_night';if(sceneKey!==pk){sceneKey=pk;document.getElementById('scene').style.backgroundImage=ART[pk]?'url('+ART[pk]+')':'none'}return}
   const v={setup:vSetup,assign:vAssign,night:vNight,day:vDay,over:vOver}[S.phase]();
-  const app=document.getElementById('app');app.innerHTML=v+vSheet();
+  const app=document.getElementById('app');app.innerHTML=v+vSheet()+vPause();
   const vk=S.phase+':'+S.round+':'+S.step+':'+(S.pick?S.pick.type:'');
   if(vk!==viewKey){viewKey=vk;app.querySelectorAll(':scope > section.card').forEach(e=>e.classList.add('enter'))}
   const nk=S.phase==='night'?S.round+':'+S.step:'';
@@ -935,7 +937,7 @@ document.getElementById('timer').addEventListener('click',function(ev){const b=e
 const NKEY='wwj-net-v1',PEERJS='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js',QRJS='https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
 let NET={mode:null},peer=null,pconn=null,conns={},netSt='',PV=null,retryT=0,pushT=0,pend='';
 function netSave(){try{localStorage.setItem(NKEY,JSON.stringify(NET))}catch(e){}}
-function netLoad(){try{const d=JSON.parse(localStorage.getItem(NKEY));if(d&&d.mode)NET=d}catch(e){}}
+function netLoad(){try{const d=JSON.parse(localStorage.getItem(NKEY));if(d&&typeof d==='object')NET=d}catch(e){}}
 const SRI={};SRI[PEERJS]='sha512-iFU+yF1keEaLDC9HEwPfLMSRaS0unBHE14GEgx6pQKJXjp5v0tvX8xpfp2lgJ62XEjbYp/M5C3CAmej/PWXMyA==';SRI[QRJS]='sha512-ZDSPMa/JM1D+7kdg2x3BsruQ6T/JpJo3jWDWkCZsP+5yVyp1KfESqLI+7RqB5k24F7p2cV7i2YHh/890y6P6Sw==';
 /* 外部函式庫用完整性雜湊鎖定內容：CDN 上的檔案被改過就不會執行 */
 function lib(src,has){return new Promise(function(ok,no){if(has())return ok();const s=document.createElement('script');s.src=src;s.integrity=SRI[src];s.crossOrigin='anonymous';s.onload=function(){ok()};s.onerror=function(){no()};document.head.appendChild(s)})}
@@ -954,7 +956,9 @@ function themeRow(){return '<div class="row seg">'+[['dark','深色'],['light','
 const playMode=()=>NET.play==='cards'||NET.play==='online'||NET.play==='phone'?NET.play:'phone';
 /* 裁判端。房號只有四位數，任何人都可能連進來，所以對方送來的東西一律當不可信：限制連線數、訊息頻率和記住的人數 */
 const MAXC=40;
-function hostOpen(fresh){if(NET.mode!=='host'||fresh)NET={mode:'host',code:String(1000+Math.floor(Math.random()*9000)),seats:{},names:{},dealt:false,play:playMode()};
+function hostOpen(fresh){if(NET.mode!=='host'||fresh){NET={mode:'host',code:String(1000+Math.floor(Math.random()*9000)),seats:{},names:{},dealt:false,play:playMode()};
+    /* 新房間從空座位開始：上一個房間留在座位上的名字全部清掉，名字由這次加入的人自己帶進來 */
+    S.players.forEach(p=>{p.name=''});save()}
   netSave();netKill();netSt='開房中…';
   Promise.all([lib(PEERJS,()=>window.Peer),lib(QRJS,()=>window.qrcode).catch(function(){})]).then(function(){
     if(NET.mode!=='host')return;const my=peer=new Peer(roomId(NET.code));
@@ -968,27 +972,49 @@ function hostOpen(fresh){if(NET.mode!=='host'||fresh)NET={mode:'host',code:Strin
       else if(e.type!=='peer-unavailable'){netSt='連不上連線服務，自動重試中…';retryT=setTimeout(function(){hostOpen()},4000)}
       soft()});
   }).catch(function(){netSt='連線元件載入失敗，請確認網路後再試';soft()});}
-function hostClose(){NET={mode:null};netSave();netKill();netSt=''}
+function hostClose(){const ow=owners();Object.keys(ow).forEach(s=>{if(P(+s))P(+s).name=''});NET={mode:null};netSave();netKill();netSt='';save()}
 function owners(){const o={};Object.keys(NET.seats||{}).forEach(tk=>{const s=NET.seats[tk];if(s>=1&&s<=S.players.length)o[s]=tk});return o}
 function stateFor(tk){const ow=owners(),seat=ow[NET.seats[tk]]===tk?NET.seats[tk]:0,p=seat&&P(seat);
   return{t:'state',code:NET.code,n:S.players.length,lock:NET.dealt||S.phase!=='assign',seat:seat,name:NET.names[tk]||'',
-    seats:S.players.map(q=>({id:q.id,name:q.name,alive:q.alive,taken:!!ow[q.id]})),
+    seats:S.players.map(q=>({id:q.id,name:q.name,alive:q.alive,taken:!!ow[q.id],free:!ow[q.id]&&(NET.gone||{})[q.id]!=null&&inGame()})),pz:pausedSeats().map(x=>x.id),
     play:playMode(),role:playMode()!=='cards'&&(NET.dealt||S.phase==='night'||S.phase==='day'||S.phase==='over')&&p&&p.role?AK(p):null,alive:p?p.alive:true,pk:S.phase==='night'||S.phase==='day'||S.phase==='over'?S.phase:'',online:!!(playMode()==='online'),
     stp:(playMode()==='online')&&S.phase==='night'?STEPN[nightSteps()[Math.min(S.step,nightSteps().length-1)]]||'':'',act:actFor(p),
     lucky:(playMode()==='online')&&p&&S.lucky&&S.lucky.pid===p.id&&!S.lucky.used?S.lucky.item:'',
     ph:S.phase==='night'?'第 '+S.round+' 夜':S.phase==='day'?'第 '+S.round+' 天':S.phase==='over'?'遊戲結束':'',over:S.phase==='over'?S.result:''}}
+/* 斷線偵測：玩家每 4 秒送一次心跳，超過 12 秒沒消息就算離線（手機鎖屏、切走、沒網路都會） */
+const BEAT=4000,DEAD=12000;let seen={},pzKey='';
+const isOn=tk=>!!(tk&&conns[tk]&&conns[tk].open&&Date.now()-(seen[tk]||0)<DEAD);
+const inGame=()=>S.phase==='night'||S.phase==='day';
+/* 目前缺席的座位：有主但離線的，加上遊戲中途離開房間的（NET.gone） */
+function awaySeats(){if(NET.mode!=='host'||!inGame())return[];const ow=owners(),g=NET.gone||{},o=[];
+  S.players.forEach(p=>{const tk=ow[p.id];if(tk?!isOn(tk):g[p.id]!=null)o.push({id:p.id,name:tk?NET.names[tk]||'':g[p.id],left:!tk})});return o}
+/* 只有線上玩會暫停：現場玩時大家本來就會把手機蓋著或鎖屏，不能因此卡住 */
+function pausedSeats(){if(playMode()!=='online')return[];const ig=NET.ignore||{};return awaySeats().filter(x=>!ig[x.id])}
+function vPause(){const z=pausedSeats();if(!z.length)return'';
+  return '<div class="veil pz"><div class="sheet"><h2>遊戲暫停</h2><p class="say">'+z.map(x=>x.id+'號'+(x.name?'（'+esc(x.name)+'）':'')+(x.left?'離開了房間':'斷線了')).join('、')+'。</p>'
+    +'<p class="note">他重新連上就會自動繼續。離開的人可以用原本的房號或連結再加入，坐回空出來的座位。暫停期間玩家手機上不能操作。</p>'
+    +'<div class="big roomno">'+NET.code+'</div>'
+    +'<button class="btn pri" data-n="pzGo">不等了，繼續遊戲（他的選擇由我代選）</button>'
+    +'<button class="btn" data-n="pzReopen">重開房間（同一個房號，大家重新連線）</button>'
+    +'<button class="btn red" data-n="hostClose">關閉房間</button></div></div>'}
+setInterval(function(){if(NET.mode!=='host')return;const ig=NET.ignore||{},aw=awaySeats(),ids=aw.map(x=>x.id);let ch=false;
+  Object.keys(ig).forEach(s=>{if(ids.indexOf(+s)<0){delete ig[s];ch=true}});if(ch)netSave();
+  const k=playMode()+'|'+aw.map(x=>x.id+(x.left?'L':'')).join(',')+'|'+pausedSeats().length;
+  if(k!==pzKey){const was=pzKey;pzKey=k;if(was!==''||aw.length){if(playMode()!=='online'&&aw.length>(was.split('|')[1]||'').split(',').filter(Boolean).length)toast(aw.map(x=>x.id+'號').join('、')+' 離線');netPush();soft()}}},2000);
 function netPush(){if(NET.mode!=='host')return;clearTimeout(pushT);pushT=setTimeout(function(){
   if(NET.dealt&&S.players.every(p=>!p.role)){NET.dealt=false;netSave()}
+  if(!inGame()&&(Object.keys(NET.gone||{}).length||Object.keys(NET.ignore||{}).length)){NET.gone={};NET.ignore={};netSave()}
   Object.keys(conns).forEach(tk=>{const cn=conns[tk];if(cn&&cn.open)try{cn.send(stateFor(tk))}catch(e){}})},0)}
 function hostMsg(cn,d){if(NET.mode!=='host'||!d||typeof d!=='object')return;
   if(d.t==='hello'){const tk=String(d.token||'').slice(0,40);if(!tk)return;
     if(!(tk in NET.names)&&!(tk in NET.seats)&&Object.keys(NET.names).length>=MAXC)return;if(!(tk in NET.names))NET.names[tk]='';cn.tk=tk;const old=conns[tk];conns[tk]=cn;if(old&&old!==cn)try{old.close()}catch(e){}
     if(d.name)NET.names[tk]=clean(d.name)}
-  const tk=cn.tk;if(!tk)return;const ow=owners(),mine=ow[NET.seats[tk]]===tk?NET.seats[tk]:0,open=!NET.dealt&&S.phase==='assign';
+  const tk=cn.tk;if(!tk)return;seen[tk]=Date.now();if(d.t==='ping'){try{cn.send({t:'pong'})}catch(e){}return}
+  const ow=owners(),mine=ow[NET.seats[tk]]===tk?NET.seats[tk]:0,open=!NET.dealt&&S.phase==='assign',g=NET.gone||(NET.gone={});
   if(d.t==='name'){NET.names[tk]=clean(d.name)}
-  if(d.t==='seat'&&open){const s=+d.seat;if(s>=1&&s<=S.players.length&&(!ow[s]||ow[s]===tk)){if(mine&&mine!==s)P(mine).name='';NET.seats[tk]=s}}
-  if(d.t==='act'){if(mine)hostAct(mine,d);return}
-  if(d.t==='leave'){if(mine&&open)P(mine).name='';delete NET.seats[tk];delete NET.names[tk]}
+  if(d.t==='seat'){const s=+d.seat;if(s>=1&&s<=S.players.length&&(!ow[s]||ow[s]===tk)&&(open||(!mine&&g[s]!=null))){if(mine&&mine!==s)P(mine).name='';NET.seats[tk]=s;delete g[s]}}
+  if(d.t==='act'){if(mine&&!pausedSeats().length)hostAct(mine,d);return}
+  if(d.t==='leave'){if(mine){if(inGame())g[mine]=NET.names[tk]||P(mine).name||'';P(mine).name=''}delete NET.seats[tk];delete NET.names[tk]}
   const now=owners()[NET.seats[tk]]===tk?NET.seats[tk]:0;if(now&&NET.names[tk])P(now).name=NET.names[tk];
   netSave();save();soft()}
 function vRoom(){if(NET.mode!=='host')return '<h2>連線發牌</h2><p class="note">不用實體牌時用：開一個房間，每個人用自己的手機加入、選座位，發牌後各自在手機上看自己的身份。</p>'
@@ -1003,7 +1029,7 @@ function vRoom(){if(NET.mode!=='host')return '<h2>連線發牌</h2><p class="not
       online:'線上玩：牌在手機上，夜晚輪到誰，他的手機會跳出選項（刀誰、救不救、驗誰…），選完直接顯示在你的畫面上，你照常按下一步。'}[pm]+'</p>'
     +'<p class="note">加入方式：用手機相機掃 QR code；或打開同一個網址，按「加入房間」輸入房號；或把連結傳給大家。</p>'
     +'<div class="row"><button class="btn" data-n="share">分享連結</button></div>'
-    +(S.players.length?'<div class="plist">'+S.players.map(p=>{const tk=ow[p.id],on=tk&&conns[tk]&&conns[tk].open;
+    +(S.players.length?'<div class="plist">'+S.players.map(p=>{const tk=ow[p.id],on=isOn(tk);
       return '<span class="'+(tk?on?'on':'off':'')+'"><b>'+p.id+'</b><em>'+(tk?esc(NET.names[tk]||'（沒填名字）')+(on?'':'・離線'):'空位')+'</em>'+(tk?'<button data-n="kick" data-p="'+p.id+'" aria-label="請出 '+p.id+'號">✕</button>':'')+'</span>'}).join('')+'</div>'
       +'<p class="note">已入座 '+Object.keys(ow).length+'／'+S.players.length+'。發牌前先核對名單，不認識的人按 ✕ 請出去。'+(pm==='cards'?'':NET.dealt?'已發牌，玩家手機上看得到自己的身份。':un?'先在座位與發牌頁按「隨機發牌」（或手動指定），再發到手機。沒按的話，開始第一夜後，已記錄身份的座位也會自動送出。':'身份都排好了，可以發到手機；直接開始第一夜也會自動送出。')+'</p>'
       +(pm==='cards'?'':'<div class="row">'+(NET.dealt?'<button class="btn" data-n="undeal">收回手機上的牌</button>':'<button class="btn pri" data-n="dealNet"'+(un?' disabled':'')+'>發牌到玩家手機</button>')+'</div>'):'<p class="note">先到「座位與發牌」頁，玩家才能選座位。</p>')
@@ -1053,7 +1079,7 @@ function hostAct(seat,d){const p=P(seat);if(!(playMode()==='online')||!p)return;
   else act(a,pp)}
 /* 裁判畫面上的提示：這一步在等誰 */
 function onlineNote(st){if(NET.mode!=='host'||!(playMode()==='online'))return'';const ow=owners(),w=S.players.filter(p=>{const a=seatActs(st,p);return a&&a.length});
-  if(!w.length)return'';return '<p class="note on">線上模式：等 '+w.map(p=>{const tk=ow[p.id],on=tk&&conns[tk]&&conns[tk].open;return p.id+'號'+(on?'':'（未連線）')}).join('、')+' 在手機上選擇，選好會直接顯示在下面。未連線的由你代選。</p>'}
+  if(!w.length)return'';return '<p class="note on">線上模式：等 '+w.map(p=>{const tk=ow[p.id],on=isOn(tk);return p.id+'號'+(on?'':'（未連線）')}).join('、')+' 在手機上選擇，選好會直接顯示在下面。未連線的由你代選。</p>'}
 
 /* 玩家端。主機送來的資料也不直接信：只留已知的欄位，型別和範圍都檢查過才拿去畫 */
 function actClean(a){if(!a||typeof a!=='object'||!Array.isArray(a.groups))return null;const str=(v,n)=>String(v==null?'':v).slice(0,n);
@@ -1061,7 +1087,7 @@ function actClean(a){if(!a||typeof a!=='object'||!Array.isArray(a.groups))return
     big:a.big&&typeof a.big==='object'?{t:str(a.big.t,30),tone:a.big.tone==='good'||a.big.tone==='evil'?a.big.tone:''}:null,
     groups:a.groups.slice(0,4).map(g=>({label:str(g&&g.label,20),a:/^[a-zA-Z]{1,10}(:\d{1,6})?$/.test(g&&g.a)?g.a:'x',
       opts:(g&&Array.isArray(g.opts)?g.opts:[]).slice(0,32).map(o=>({p:/^[a-z0-9]{0,10}$/.test(o&&o.p)?o.p:'0',label:str(o&&o.label,24),sel:!!(o&&o.sel),dis:!!(o&&o.dis)}))}))}}
-function vAct(v){const A=v.act;if(!A)return v.online&&v.pk==='night'&&v.stp?'<section class="card"><h2>夜晚進行中<small>'+esc(v.stp)+'</small></h2><p class="note">還沒輪到你，或今晚沒有你的行動。請等待。</p></section>':'';
+function vAct(v){if(v.pz&&v.pz.length)return'';const A=v.act;if(!A)return v.online&&v.pk==='night'&&v.stp?'<section class="card"><h2>夜晚進行中<small>'+esc(v.stp)+'</small></h2><p class="note">還沒輪到你，或今晚沒有你的行動。請等待。</p></section>':'';
   return '<section class="card actc"><h2>'+esc(A.title)+'</h2>'+(A.big?'<div class="big '+A.big.tone+'">'+esc(A.big.t)+'</div>':'')+A.info.map(x=>'<p class="note">'+esc(x)+'</p>').join('')
     +A.groups.map(g=>'<h3>'+esc(g.label)+'</h3><div class="pacts">'+g.opts.map(o=>{const k=g.a+'|'+o.p,pd=pend===k;
       return '<button class="btn sm'+(o.sel?' sel':'')+(pd?' pend':'')+'" data-n="pact" data-p="'+esc(k)+'"'+(o.dis?' disabled':'')+'>'+(pd?'再點一次確認：':'')+esc(o.label)+'</button>'}).join('')+'</div>').join('')
@@ -1069,15 +1095,18 @@ function vAct(v){const A=v.act;if(!A)return v.online&&v.pk==='night'&&v.stp?'<se
 function pvClean(d){if(!d||typeof d!=='object'||d.t!=='state'||!Array.isArray(d.seats))return null;const n=Math.min(30,d.seats.length);
   const seat=Number.isInteger(d.seat)&&d.seat>=1&&d.seat<=n?d.seat:0,role=typeof d.role==='string'&&(ROLES[d.role]||d.role==='wolfyb2')&&FX[d.role]?d.role:null;
   return{n:n,seat:seat,role:role,lock:!!d.lock,alive:d.alive!==false,name:clean(d.name),ph:String(d.ph||'').slice(0,12),pk:d.pk==='night'||d.pk==='day'||d.pk==='over'?d.pk:'',online:!!d.online,play:d.play==='cards'||d.play==='online'?d.play:'phone',stp:String(d.stp||'').slice(0,8),lucky:ITEM[d.lucky]?d.lucky:'',act:actClean(d.act),over:String(d.over||'').slice(0,60),
-    seats:d.seats.slice(0,n).map((q,i)=>({id:i+1,name:clean(q&&q.name),taken:!!(q&&q.taken)}))}}
+    pz:(Array.isArray(d.pz)?d.pz:[]).slice(0,30).map(x=>x|0).filter(x=>x>=1&&x<=n),
+    seats:d.seats.slice(0,n).map((q,i)=>({id:i+1,name:clean(q&&q.name),taken:!!(q&&q.taken),free:!!(q&&q.free)}))}}
 function playerConnect(){netKill();netSt='連線中…';
   lib(PEERJS,()=>window.Peer).then(function(){if(NET.mode!=='player'||!NET.code)return;const my=peer=new Peer();
     const again=function(){if(peer!==my)return;clearTimeout(retryT);retryT=setTimeout(function(){if(NET.mode==='player'&&NET.code)playerConnect()},3500)};
     my.on('open',function(){if(peer!==my)return;const cn=pconn=my.connect(roomId(NET.code),{reliable:true});
-      cn.on('open',function(){if(peer!==my)return;netSt='ok';cn.send({t:'hello',token:NET.token,name:NET.name});soft()});
-      cn.on('data',function(d){if(peer!==my)return;const v=pvClean(d);if(!v)return;const o=PV;PV=v;netSt='ok';
+      cn.on('open',function(){if(peer!==my)return;netSt='ok';lastPong=Date.now();cn.send({t:'hello',token:NET.token,name:NET.name});soft()});
+      cn.on('data',function(d){if(peer!==my)return;lastPong=Date.now();if(d&&d.t==='pong')return;const v=pvClean(d);if(!v)return;const o=PV;PV=v;netSt='ok';
         if(v.role!==(o&&o.role)){tilt.rx=0;tilt.ry=tilt.base=180;tilt.o=null}
-        if(o){if(v.pk!==o.pk||v.ph!==o.ph){if(v.pk==='night')announce('moon','天黑請閉眼',v.ph);else if(v.pk==='day')announce('sun','天亮了',v.ph);else if(v.pk==='over')announce('','遊戲結束',v.over)}
+        if(o&&v.pz.length&&!o.pz.length)announce('','遊戲暫停','等 '+v.pz.map(x=>x+'號').join('、')+' 重新連線');
+        else if(o&&!v.pz.length&&o.pz.length)announce('','遊戲繼續','');
+        else if(o){if(v.pk!==o.pk||v.ph!==o.ph){if(v.pk==='night')announce('moon','天黑請閉眼',v.ph);else if(v.pk==='day')announce('sun','天亮了',v.ph);else if(v.pk==='over')announce('','遊戲結束',v.over)}
           else if(o.alive&&!v.alive)announce('','你已出局','請保持安靜，不要透露身份');
           else if(!o.role&&v.role)announce('','發牌了','點一下卡片看你的身份');
           else if(v.act&&(!o.act||o.act.st!==v.act.st)){pend='';announce('','輪到你了',v.act.title)}
@@ -1088,14 +1117,18 @@ function playerConnect(){netKill();netSt='連線中…';
     my.on('disconnected',function(){if(peer!==my)return;netSt='連線中斷，重新連線中…';soft();again()});
   }).catch(function(){netSt='連線元件載入失敗，請確認網路';soft();clearTimeout(retryT);retryT=setTimeout(function(){if(NET.mode==='player'&&NET.code)playerConnect()},4000)});}
 function psend(m){try{if(pconn&&pconn.open)pconn.send(m)}catch(e){}}
-function playerLeave(){psend({t:'leave'});NET={mode:null};netSave();PV=null;netSt='';setTimeout(netKill,200);
+let lastPong=0;
+setInterval(function(){if(NET.mode!=='player'||!NET.code)return;
+  if(pconn&&pconn.open){psend({t:'ping'});if(netSt==='ok'&&lastPong&&Date.now()-lastPong>DEAD){netSt='和裁判失去連線，重新連線中…';soft();playerConnect()}}},BEAT);
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&NET.mode==='player'&&NET.code){if(pconn&&pconn.open)psend({t:'ping'});else playerConnect()}});
+function playerLeave(){psend({t:'leave'});NET={mode:null,name:NET.name||''};netSave();PV=null;netSt='';setTimeout(netKill,200);
   try{history.replaceState(null,'',location.pathname)}catch(e){}}
 function vPlayer(){const hd=t=>'<header class="bar"><h1>'+(PV&&PV.pk&&ICON[PV.pk==='day'?'sun':'moon']&&PV.pk!=='over'?'<span class="orb">'+ICON[PV.pk==='day'?'sun':'moon']+'</span>':'')+'<span class="ttl">'+t+'</span></h1><button class="btn sm" data-n="leave">離開</button></header>';
   if(!NET.code)return hd('加入房間')+'<section class="card"><h2>輸入房號</h2><p class="note">房號在裁判的手機上，四個數字。也可以直接用相機掃裁判畫面上的 QR code。</p>'
     +'<label class="field">房號<input id="j-code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="例如 4821"></label>'
     +'<label class="field">你的名字<input id="j-name" maxlength="12" autocomplete="off" placeholder="讓裁判認得你" value="'+esc(NET.name||'')+'"></label>'
     +'<div class="row"><button class="btn pri" data-n="join">加入</button></div></section>';
-  const st=netSt!=='ok'?'<p class="note w">'+esc(netSt)+'</p>':'',v=PV;
+  const v=PV,st=(netSt!=='ok'?'<p class="note w">'+esc(netSt)+'</p>':'')+(v&&v.pz&&v.pz.length?'<section class="card pzc"><h2>遊戲暫停</h2><p class="note">等 '+v.pz.map(x=>x+'號').join('、')+' 重新連線，或由裁判決定繼續。這段時間不能操作。</p></section>':'');
   if(!v)return hd('房間 '+NET.code)+'<section class="card"><h2>正在加入房間</h2>'+(st||'<p class="note">連線中…</p>')+'</section>';
   if(v.role&&v.seat){const r=RI(v.role),me=v.seats[v.seat-1]||{};
     return hd('房間 '+NET.code)+st+vAct(v)+'<section class="card"><h2>'+v.seat+'號'+(v.name?'・'+esc(v.name):'')+'<small>'+esc(v.ph||'等待開始')+'</small></h2>'
@@ -1111,13 +1144,15 @@ function vPlayer(){const hd=t=>'<header class="bar"><h1>'+(PV&&PV.pk&&ICON[PV.pk
   return hd('房間 '+NET.code)+st+'<section class="card"><h2>你的名字</h2><label class="field"><input id="p-nm" data-nc="pname" maxlength="12" autocomplete="off" placeholder="讓裁判認得你" value="'+esc(v.name||NET.name||'')+'"></label></section>'
     +'<section class="card"><h2>選座位<small>'+(v.seat?'你是 '+v.seat+'號':'還沒選')+'</small></h2>'
     +(!v.n?'<p class="note">裁判還在設定人數，等一下這裡會出現座位。</p>':'<div class="pseats">'+v.seats.map(s=>{const mine=s.id===v.seat;
-      return '<button class="chip'+(mine?' sel':'')+'" data-n="pseat" data-p="'+s.id+'"'+((s.taken&&!mine)||lock?' disabled':'')+'><span class="hd"><b>'+s.id+'</b></span><span class="nm">'+(esc(s.name)||(s.taken?'已有人':'空位'))+'</span></button>'}).join('')+'</div>')
-    +'<p class="note">'+(lock?(v.seat?'座位已鎖定，等裁判發牌。':'遊戲已開始，不能再選座位，請找裁判。'):v.seat?'選好了。等所有人入座後，裁判會發牌到這裡。':'點一個空位，照實際坐的位置選。')+'</p></section>'}
+      return '<button class="chip'+(mine?' sel':'')+'" data-n="pseat" data-p="'+s.id+'"'+((s.taken&&!mine)||(lock&&!s.free)?' disabled':'')+'><span class="hd"><b>'+s.id+'</b></span><span class="nm">'+(esc(s.name)||(s.taken?'已有人':'空位'))+'</span></button>'}).join('')+'</div>')
+    +'<p class="note">'+(lock?(v.seat?'座位已鎖定，等裁判發牌。':v.seats.some(x=>x.free)?'遊戲進行中。亮著的是空出來的座位，如果那是你原本的位子，點它坐回去。':'遊戲已開始，不能再選座位，請找裁判。'):v.seat?'選好了。等所有人入座後，裁判會發牌到這裡。':'點一個空位，照實際坐的位置選。')+'</p></section>'}
 document.addEventListener('click',function(ev){const el=ev.target.closest&&ev.target.closest('[data-n]');if(!el||el.disabled)return;wake();
   const a=el.getAttribute('data-n'),p=el.getAttribute('data-p');
   if(a==='theme'){THEME=p;try{localStorage.setItem(TKEY,p)}catch(e){}themeApply()}
   else if(a==='mode'){if(p==='cards'||p==='phone'||p==='online'){NET.play=p;netSave();netPush()}}
   else if(a==='pact'){const x=p.split('|');if((x[0]==='check'||x[0]==='lcheck')&&pend!==p){pend=p}else{pend='';psend({t:'act',a:x[0],p:x[1]})}}
+  else if(a==='pzGo'){const ig=NET.ignore||(NET.ignore={});pausedSeats().forEach(x=>{ig[x.id]=1;if(x.left&&NET.gone)delete NET.gone[x.id]});netSave();netPush();toast('繼續遊戲')}
+  else if(a==='pzReopen'){hostOpen();toast('房間重開中，請大家重新連線')}
   else if(a==='hostOpen')hostOpen();
   else if(a==='hostClose'){hostClose();S.sheet=null;toast('房間已關閉')}
   else if(a==='dealNet'){NET.dealt=true;netSave();netPush();toast('已發牌到玩家手機')}
@@ -1125,7 +1160,7 @@ document.addEventListener('click',function(ev){const el=ev.target.closest&&ev.ta
   else if(a==='undeal'){NET.dealt=false;netSave();netPush()}
   else if(a==='share'){const u=joinUrl();if(navigator.share)navigator.share({title:'狼人殺房間 '+NET.code,url:u}).catch(function(){});
     else if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){toast('連結已複製')},function(){toast(u)});else toast(u);return}
-  else if(a==='pmode'){NET={mode:'player',code:'',token:tok(),name:''};netSave()}
+  else if(a==='pmode'){NET={mode:'player',code:'',token:tok(),name:NET.name||''};netSave()}
   else if(a==='join'){const c=(document.getElementById('j-code').value||'').replace(/\D/g,''),nmv=clean(document.getElementById('j-name').value);
     if(c.length!==4){toast('房號是四個數字');return}
     NET.code=c;NET.name=nmv;netSave();PV=null;playerConnect()}
@@ -1141,7 +1176,7 @@ function announce(ic,title,sub){const el=document.getElementById('ann');if(!el)r
   void el.offsetWidth;el.classList.add('on');annT=setTimeout(function(){el.classList.remove('on');el.innerHTML=''},2600)}
 function netBoot(){netLoad();const rm=(new URLSearchParams(location.search).get('room')||'').replace(/\D/g,'').slice(0,4);
   if(rm.length===4&&!(NET.mode==='host'&&NET.code===rm)){const same=NET.mode==='player';
-    NET={mode:'player',code:rm,token:(same&&NET.token)||tok(),name:(same&&NET.name)||''};netSave()}
+    NET={mode:'player',code:rm,token:(same&&NET.token)||tok(),name:(NET.mode!=='host'&&NET.name)||''};netSave()}
   if(NET.mode==='host')hostOpen();else if(NET.mode==='player'&&NET.code)playerConnect()}
 
 /* ---------- 螢幕恆亮 ---------- */
