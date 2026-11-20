@@ -113,6 +113,8 @@
 | `tools/gen_art.py` | 用 OpenAI 產角色卡和介面圖（金鑰從 `OPENAI_API_KEY` 環境變數讀） |
 | `tools/gen_samples.py` | 新畫法定案前的試產紀錄，保留各輪提示詞 |
 | `docs/ART.md` | 美術風格說明與全部提示詞，加新牌或重產時照這份做 |
+| `docs/HANDOFF.md` | 接手說明：程式怎麼組成、怎麼改、怎麼驗證、踩過的坑、還沒做的事 |
+| `CLAUDE.md` | 給 AI 工作階段自動讀取的簡短守則 |
 | `tools/e2e/` | 無頭瀏覽器測試 |
 | `art/` | 原圖，只留在本機，不進版控 |
 
