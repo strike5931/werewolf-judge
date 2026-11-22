@@ -765,8 +765,9 @@ function exile(id){const q=P(id);S.exiled=id;
   if(q.role==='idiot'&&!q.idiot){q.idiot=true;log(nm(id)+' 被放逐，白痴翻牌免死，失去投票權')}else kill(id,'放逐')}
 function vVote(){const V=S.vote,ow=owners(),tg=id=>id+'號'+(P(id).name?' '+esc(P(id).name):''),off=id=>!isOn(ow[id]);
   if(V.stage==='setup'){const nv=S.players.length-V.cand.length,ok=V.cand.length>=2&&nv>=1;
-    return '<section class="card"><h2>誰上警？<small>已選 '+V.cand.length+' 人</small></h2><p class="note">點選要競選警長的玩家，再點一次取消。上警的人不投票，其他人用手機投。</p>'
+    return '<section class="card"><h2>誰上警？<small>已選 '+V.cand.length+' 人</small></h2><p class="say">現在開始警長競選，請大家繼續閉眼。想上警的玩家請舉手。</p><p class="note">大家還閉著眼。點選舉手的人，再點一次取消。</p>'
       +pick('voteCand',S.players,{sels:V.cand})
+      +(V.cand.length?'<p class="say">請放下手。天亮了，請睜眼。上警的玩家是 '+V.cand.map(x=>x+'號').join('、')+'。</p><p class="note">上警的人發言完，再按「開始投票」。上警的人不投票，其他人用手機投。</p>':'')
       +(ok?'':'<p class="note w">'+(V.cand.length<2?'至少要兩個人上警才需要投票。只有一人上警就直接當選，按「取消」回去用「記錄當選者」。':'所有人都上警就沒有人能投票：警徽流失，按「取消」回去記錄。')+'</p>')+'</section>'
       +foot('<button class="btn back" data-a="voteCancel">取消</button><button class="btn pri" data-a="voteStart" data-p="sheriff"'+(ok?'':' disabled')+'>開始投票（'+nv+' 人投）</button>')}
   const T=voteTally(V),done=V.voters.length-T.wait.length,max=Math.max(1,T.top),few=V.cand.length<=4;
@@ -798,9 +799,10 @@ function vDay(){const R=S.cfg.rules,w=winner();let h='';
   if(S.vote)return bar('第 '+S.round+' 天','sun')+statLine()+h+vVote();
   const von=voteOn();
   const elect=S.round===1&&R.sheriff&&!S.sheriffDone;
-  if(elect)h+='<section class="card"><h2>警長競選<small>宣布死訊之前進行</small></h2><p class="say">天亮了，請睜眼。現在開始警長競選，想上警的玩家請舉手。</p>'
+  if(elect)h+='<section class="card"><h2>警長競選<small>宣布死訊之前進行</small></h2><p class="say">現在開始警長競選，請大家繼續閉眼。想上警的玩家請舉手。</p>'
+    +'<p class="note">大家還閉著眼，看清楚誰舉手'+(von?'，按下面的按鈕記下來':'')+'。看完再念：</p><p class="say">請放下手。天亮了，請睜眼。</p>'
     +'<p class="note">昨夜死亡的玩家此時仍可參選；狼人可在競選中自爆（用下方「狼人自爆」）。警長有 1.5 票，並決定發言順序。</p>'
-    +(von?'<div class="row"><button class="btn pri" data-a="voteSetup">開始警長投票（玩家用手機投）</button></div>':'')
+    +(von?'<div class="row"><button class="btn pri" data-a="voteSetup">記錄舉手的人，準備手機投票</button></div>':'')
     +'<div class="row"><button class="btn'+(von?'':' pri')+'" data-a="pickOpen" data-p="sheriff">'+(von?'直接記錄當選者':'記錄當選者')+'</button><button class="btn" data-a="noSheriff">無人當選／警徽流失</button></div></section>';
   const d=S.deaths,lw=R.lw==='all'||(R.lw==='first'&&S.round===1);
   h+='<section class="card"><h2>昨夜死訊'+(elect?'<small>競選後再宣布</small>':'')+'</h2>'

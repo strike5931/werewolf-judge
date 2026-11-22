@@ -351,11 +351,12 @@ async function testVote() {
   const vote = async () => (await state(h.page)).vote, ht = () => text(h.page);
   ok(await until(async () => (await text(D.page)).includes('第 1 天'), '天亮'), '天亮');
   ok(!(await state(h.page)).players[v1 - 1].alive && !(await text(D.page)).includes('你已出局'), '警長競選還沒結束：昨夜死的人手機先不顯示出局');
-  ok((await ht()).includes('開始警長投票'), '裁判台出現「開始警長投票」');
+  ok((await ht()).includes('準備手機投票') && (await ht()).includes('請大家繼續閉眼'), '裁判台出現警長競選：先閉眼舉手');
   await act(h.page, 'voteSetup');
   await shot(h.page, '0-day-elect-setup-empty');
   ok(await h.page.evaluate(() => document.querySelector('[data-a="voteStart"]').disabled), '還沒選上警的人：不能開始投票');
   await act(h.page, 'voteCand', A.seat); await act(h.page, 'voteCand', X);
+  ok((await ht()).includes('請放下手。天亮了，請睜眼。上警的玩家是'), '記完舉手的人，才出現「請睜眼」的台詞並念出上警名單');
   await shot(h.page, '1-setup');
   await act(h.page, 'voteStart', 'sheriff');
   let V = await vote();
