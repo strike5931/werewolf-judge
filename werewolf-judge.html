@@ -76,6 +76,15 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .note.on{color:var(--fg);border-left:3px solid var(--moon);padding-left:8px}
 .actc{border-color:var(--moon)}
 .actc h3{margin:6px 0 0;font-size:.9rem;color:var(--muted);font-weight:600}
+.votec{gap:10px}
+.vrow{display:grid;grid-template-columns:minmax(4.2rem,auto) 1fr auto;align-items:center;gap:2px 8px}
+.vrow b{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:8.5rem}
+.vrow em{font-style:normal;font-weight:700;font-variant-numeric:tabular-nums}
+.vrow p{grid-column:1/-1;margin:0;font-size:.8rem;color:var(--muted)}
+.vbar{height:10px;border-radius:5px;background:var(--surface2);overflow:hidden}
+.vbar i{display:block;height:100%;background:var(--muted);border-radius:5px;transition:width .25s}
+.vrow.top .vbar i{background:var(--moon)} .vrow.top em{color:var(--moon)}
+.vps{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pacts{display:grid;grid-template-columns:repeat(auto-fill,minmax(6.4rem,1fr));gap:6px}
 .pacts .btn{min-height:46px;white-space:normal;line-height:1.25}
 .pacts .btn.pend{border-color:var(--moon);box-shadow:0 0 0 3px color-mix(in srgb,var(--moon) 35%,transparent)}
@@ -381,7 +390,7 @@ function newNt(){return{guard:null,kill:null,save:null,poison:null,check:null,ch
 function startNt(){S.nt=newNt();S.nt.aw=S.cfg.roles.wolfyb>0&&holders('wolfbro').some(p=>!p.alive)}
 function fresh(cfg,players){return{v:1,phase:'setup',cfg:cfg,players:players||[],round:1,step:0,nt:newNt(),lastGuard:null,
   antidote:true,poison:true,sheriff:null,sheriffDone:false,charm:null,knightUsed:false,deaths:[],todo:[],tid:1,
-  exiled:null,tie:false,skip:false,pick:null,sheet:null,hide:false,log:[],view:null,result:null,yb:0,ybUsed:false,ybFrom:0,lucky:null,traded:false,brush:null}}
+  exiled:null,tie:false,skip:false,pick:null,sheet:null,hide:false,log:[],view:null,result:null,yb:0,ybUsed:false,ybFrom:0,lucky:null,traded:false,brush:null,vote:null,vres:null}}
 function defCfg(){return{n:12,roles:preset(12),rules:{selfSave:'first',dd:true,two:false,win:'side',sheriff:true,lw:'first'}}}
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.S&&d.S.v===1){S=d.S;H=d.H||[];Object.keys(ROLES).forEach(k=>{if(S.cfg.roles[k]==null)S.cfg.roles[k]=0});return}}catch(e){}
   S=fresh(defCfg());H=[]}
@@ -528,12 +537,12 @@ function chip(p,o){o=o||{};const r=p.role?ROLES[p.role]:null,t=[];
     if(S.lucky&&S.lucky.pid===p.id&&p.alive)t.push('<span class="tag sh">幸</span>');
   }
   const dis=o.act&&o.dis&&o.dis(p);
-  return '<button class="chip '+(p.alive?'':'dead ')+(r&&!S.hide?'tm-'+r.t:'')+(o.act&&!dis?' pickable':'')+(o.act&&o.sel===p.id?' sel':'')+'" data-a="'+(o.act||'player')+'" data-p="'+p.id+'"'+(dis?' disabled':'')+' aria-label="'+p.id+'號">'
+  return '<button class="chip '+(p.alive?'':'dead ')+(r&&!S.hide?'tm-'+r.t:'')+(o.act&&!dis?' pickable':'')+(o.act&&(o.sel===p.id||(o.sels&&o.sels.indexOf(p.id)>=0))?' sel':'')+'" data-a="'+(o.act||'player')+'" data-p="'+p.id+'"'+(dis?' disabled':'')+' aria-label="'+p.id+'號">'
     +'<span class="hd">'+(r&&!S.hide&&ART[p.role]?'<i class="av av-'+AK(p)+'"></i>':ART._back?'<i class="av av-back"></i>':'')+'<b>'+p.id+'</b></span><span class="nm">'+esc(p.name)+'</span><span class="rl">'+(S.hide?'···':r?r.n:'未知')+'</span><span class="tags">'+t.join('')+'</span></button>'}
 function board(o){return '<div class="board">'+S.players.map(p=>chip(p,o)).join('')+'</div>'}
 /* 選人：同一個座位盤切成可選狀態，list 以外的座位停用 */
 function pick(act,list,o){o=o||{};const ids=list.map(p=>p.id);
-  return board({act:act,sel:o.sel,dis:p=>ids.indexOf(p.id)<0||(o.dis&&o.dis(p))})}
+  return board({act:act,sel:o.sel,sels:o.sels,dis:p=>ids.indexOf(p.id)<0||(o.dis&&o.dis(p))})}
 function statLine(){const a=alive(),c=S.cfg.roles,x=[];
   if(S.test)x.push('<b class="c-wolf">測試：'+esc(S.test)+'</b>');
   x.push('存活 <b>'+a.length+'</b>／'+S.players.length);
@@ -715,15 +724,68 @@ const PICKS={
   wwk:{t:'白狼王帶走誰？',l:()=>alive()},
   badge:{t:'警徽移交給誰？',l:()=>alive()}
 };
+/* ---------- 投票（現場沒牌、線上玩：玩家用手機投，裁判即時看票）---------- */
+const voteOn=()=>NET.mode==='host'&&playMode()!=='cards';
+const electing=()=>S.phase==='day'&&S.round===1&&S.cfg.rules.sheriff&&!S.sheriffDone;
+const vTitle=V=>(V.type==='sheriff'?'警長投票':'放逐投票')+(V.pk?'（平票重投）':'');
+/* 警長競選在公布死訊之前，昨夜死的人照樣投；放逐只有活著且沒翻牌的白痴能投 */
+const vElig=t=>(t==='sheriff'?S.players:alive().filter(p=>!p.idiot)).map(p=>p.id);
+const vW=(V,id)=>V.type==='exile'&&S.sheriff===id?1.5:1;
+const vNum=n=>String(Math.round(n*10)/10);
+function voteOpen(type,cand,voters,pk){S.vote={type:type,stage:'open',cand:cand,voters:voters,v:{},pk:pk||0};S.vres=null}
+function voteTally(V){const rows=V.cand.map(c=>{const by=V.voters.filter(x=>V.v[x]===c);return{id:c,by:by,n:by.reduce((a,x)=>a+vW(V,x),0)}});
+  const top=Math.max(0,...rows.map(r=>r.n));
+  return{rows:rows,abs:V.voters.filter(x=>V.v[x]===0),wait:V.voters.filter(x=>V.v[x]==null),top:top,win:top>0?rows.filter(r=>r.n===top).map(r=>r.id):[]}}
+function voteOut(V,T){const w=T.win.map(x=>x+'號').join('、');
+  return V.type==='sheriff'?(T.win.length===1?w+' 當選警長':T.win.length?w+' 平票':'沒有人得票'):(T.win.length===1?w+' 得票最高':T.win.length?w+' 平票':'沒有人得票')}
+function voteLines(V,T){const z=T.rows.filter(r=>!r.n).map(r=>r.id+'號'),l=T.rows.filter(r=>r.n>0).sort((a,b)=>b.n-a.n||a.id-b.id).map(r=>r.id+'號：'+vNum(r.n)+' 票'+(r.by.length?'（'+r.by.map(x=>x+'號'+(vW(V,x)>1?'警長':'')).join('、')+'）':''));
+  const ab=T.abs.concat(T.wait).sort((a,b)=>a-b);if(z.length&&T.top>0)l.push('0 票：'+z.join('、'));if(ab.length)l.push('棄票：'+ab.map(x=>x+'號').join('、'));l.push('結果：'+voteOut(V,T));return l}
+/* 玩家投票不進復原紀錄，免得一人一票把「上一步」洗掉 */
+function voteCast(id,t){const V=S.vote;if(!V||V.stage!=='open'||V.voters.indexOf(id)<0||(t!==0&&V.cand.indexOf(t)<0))return;
+  if(V.v[id]===t)delete V.v[id];else V.v[id]=t;save();soft()}
+function vFinal(t){if(S.vres&&S.vres.l.length)S.vres.l[S.vres.l.length-1]='結果：'+t}
+function elect(id){S.sheriff=id;S.sheriffDone=true;log(nm(id)+' 當選警長');if(!P(id).alive)S.todo.push({id:S.tid++,type:'badge',pid:id})}
+function exile(id){const q=P(id);S.exiled=id;
+  if(q.role==='idiot'&&!q.idiot){q.idiot=true;log(nm(id)+' 被放逐，白痴翻牌免死，失去投票權')}else kill(id,'放逐')}
+function vVote(){const V=S.vote,ow=owners(),tg=id=>id+'號'+(P(id).name?' '+esc(P(id).name):''),off=id=>!isOn(ow[id]);
+  if(V.stage==='setup'){const nv=S.players.length-V.cand.length,ok=V.cand.length>=2&&nv>=1;
+    return '<section class="card"><h2>誰上警？<small>已選 '+V.cand.length+' 人</small></h2><p class="note">點選要競選警長的玩家，再點一次取消。上警的人不投票，其他人用手機投。</p>'
+      +pick('voteCand',S.players,{sels:V.cand})
+      +(ok?'':'<p class="note w">'+(V.cand.length<2?'至少要兩個人上警才需要投票。只有一人上警就直接當選，按「取消」回去用「記錄當選者」。':'所有人都上警就沒有人能投票：警徽流失，按「取消」回去記錄。')+'</p>')+'</section>'
+      +foot('<button class="btn back" data-a="voteCancel">取消</button><button class="btn pri" data-a="voteStart" data-p="sheriff"'+(ok?'':' disabled')+'>開始投票（'+nv+' 人投）</button>')}
+  const T=voteTally(V),done=V.voters.length-T.wait.length,max=Math.max(1,T.top),few=V.cand.length<=4;
+  const row=(t,n,by,top)=>'<div class="vrow'+(top?' top':'')+'"><b>'+t+'</b><span class="vbar"><i style="width:'+Math.round(n/max*100)+'%"></i></span><em>'+vNum(n)+' 票</em><p>'+(by||'—')+'</p></div>';
+  let h='<section class="card votec"><h2>'+vTitle(V)+'<small>'+(V.stage==='done'?'已結算':'已投 '+done+'／'+V.voters.length)+'</small></h2>'
+    +T.rows.filter(r=>few||r.n>0).map(r=>row(tg(r.id),r.n,r.by.map(x=>x+'號'+(vW(V,x)>1?'（警長 1.5）':'')).join('、'),r.n>0&&r.n===T.top)).join('')
+    +(few?'':'<p class="note">'+(T.top>0?'0 票：'+(T.rows.filter(r=>!r.n).map(r=>r.id+'號').join('、')||'無'):'還沒有人得票。')+'</p>')
+    +'<p class="note">棄票：'+(T.abs.map(x=>x+'號').join('、')||'無')+'</p>'
+    +(T.wait.length?'<p class="note '+(V.stage==='done'?'':'on')+'">'+(V.stage==='done'?'沒投（算棄票）：':'還沒投：')+T.wait.map(x=>x+'號').join('、')+'</p>':'')+'</section>';
+  if(V.stage==='open'){
+    h+='<section class="card"><h2>代投／修改<small>手機沒連上的人由你代選</small></h2><div class="vps">'+V.voters.map(x=>'<label class="field">'+tg(x)+(off(x)?'（未連線）':'')
+      +'<select data-c="vproxy" data-p="'+x+'"><option value=""'+(V.v[x]==null?' selected':'')+'>還沒投</option>'+V.cand.map(c=>'<option value="'+c+'"'+(V.v[x]===c?' selected':'')+'>投 '+c+'號</option>').join('')+'<option value="0"'+(V.v[x]===0?' selected':'')+'>棄票</option></select></label>').join('')+'</div>'
+      +'<p class="note">玩家在結算前可以改票，別人看不到；結算後才會公開到每個人的手機上。</p></section>'
+      +'<section class="card"><div class="row"><button class="btn red" data-a="pickOpen" data-p="boom">狼人自爆（這次投票作廢）</button></div></section>';
+    return h+foot('<button class="btn back" data-a="voteCancel">取消投票</button><button class="btn'+(T.wait.length?'':' pri')+'" data-a="voteEnd">'+(T.wait.length?'結算（還有 '+T.wait.length+' 人沒投）':'結算')+'</button>')}
+  const w=T.win,sh=V.type==='sheriff';let b='';
+  if(w.length===1)b='<button class="btn pri" data-a="voteApply">'+(sh?'確認：'+w[0]+'號當選警長':'確認放逐 '+w[0]+'號')+'</button>';
+  else{const again=w.length>1?'<button class="btn'+(V.pk?'':' pri')+'" data-a="votePk">'+(V.pk?'再重投一次':'平票重投（'+w.map(x=>x+'號').join('、')+'）')+'</button>':'';
+    b=again+'<button class="btn'+(V.pk||!again?' pri':'')+'" data-a="voteNone">'+(sh?'無人當選／警徽流失':'無人出局')+'</button>'}
+  h='<section class="card"><h2>結果：'+voteOut(V,T)+'</h2>'
+    +'<p class="note">'+(w.length===1?'票數已公開到玩家手機上。確認後才會真的'+(sh?'記錄警長':'放逐')+'。':w.length>1?(V.pk?'再次平票。'+(sh?'通常是警徽流失。':'照規則無人出局。'):'平票：請平票的玩家各再發言一輪，再按「平票重投」。'+(sh?'仍由沒上警的人投。':'平票的人不投票。')):'沒有人得票。')+'</p>'
+    +'<div class="row">'+b+'</div><div class="row"><button class="btn" data-a="voteBack">重新開放這一輪投票</button></div></section>'+h;
+  return h+foot('<button class="btn back" data-a="voteCancel">作廢這次投票</button>')}
 function vDay(){const R=S.cfg.rules,w=winner();let h='';
   if(w)h+='<section class="card win"><p>'+w+'</p><button class="btn pri" data-a="end">結束遊戲，公布身份</button></section>';
   if(S.pick){const k=PICKS[S.pick.type];
     h+='<section class="card"><h2>'+k.t+'</h2>'+pick('pickdo',k.l())+'</section>';
     return bar('第 '+S.round+' 天','sun')+statLine()+h+foot('<button class="btn" data-a="pickCancel">取消</button>')}
+  if(S.vote)return bar('第 '+S.round+' 天','sun')+statLine()+h+vVote();
+  const von=voteOn();
   const elect=S.round===1&&R.sheriff&&!S.sheriffDone;
   if(elect)h+='<section class="card"><h2>警長競選<small>宣布死訊之前進行</small></h2><p class="say">天亮了，請睜眼。現在開始警長競選，想上警的玩家請舉手。</p>'
     +'<p class="note">昨夜死亡的玩家此時仍可參選；狼人可在競選中自爆（用下方「狼人自爆」）。警長有 1.5 票，並決定發言順序。</p>'
-    +'<div class="row"><button class="btn pri" data-a="pickOpen" data-p="sheriff">記錄當選者</button><button class="btn" data-a="noSheriff">無人當選／警徽流失</button></div></section>';
+    +(von?'<div class="row"><button class="btn pri" data-a="voteSetup">開始警長投票（玩家用手機投）</button></div>':'')
+    +'<div class="row"><button class="btn'+(von?'':' pri')+'" data-a="pickOpen" data-p="sheriff">'+(von?'直接記錄當選者':'記錄當選者')+'</button><button class="btn" data-a="noSheriff">無人當選／警徽流失</button></div></section>';
   const d=S.deaths,lw=R.lw==='all'||(R.lw==='first'&&S.round===1);
   h+='<section class="card"><h2>昨夜死訊'+(elect?'<small>競選後再宣布</small>':'')+'</h2>'
     +'<p class="say">'+(d.length?'昨夜，'+d.map(x=>x+'號').join('、')+'玩家死亡。':'昨夜是平安夜。')+'</p>'
@@ -733,11 +795,13 @@ function vDay(){const R=S.cfg.rules,w=winner();let h='';
     if(t.type==='wwk')h+='<section class="card"><h2>'+t.pid+'號 白狼王自爆</h2><div class="row"><button class="btn pri" data-a="pickOpen" data-p="wwk:'+t.id+'">選擇帶走對象</button><button class="btn" data-a="todoSkip" data-p="'+t.id+'">不帶人</button></div></section>';
     if(t.type==='badge')h+='<section class="card"><h2>'+t.pid+'號 警長出局</h2><p class="say">請警長選擇移交警徽，或撕毀警徽。</p><div class="row"><button class="btn pri" data-a="pickOpen" data-p="badge:'+t.id+'">移交警徽</button><button class="btn" data-a="tear" data-p="'+t.id+'">撕毀警徽</button></div></section>'});
   const kn=liveOf('knight'),busy=S.todo.length>0,done=S.exiled!=null||S.tie||S.skip;
+  if(S.vres)h+='<section class="card"><h2>'+esc(S.vres.t)+'<small>已公開到玩家手機</small></h2><ul class="log">'+S.vres.l.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></section>';
   if(S.skip)h+='<section class="card"><p class="note w">白天已中止（自爆或騎士決鬥成功）。處理完技能後直接進入黑夜，今天不放逐。</p></section>';
   else if(S.exiled!=null)h+='<section class="card"><h2>今日放逐：'+S.exiled+'號</h2><p class="note">'+(P(S.exiled).alive?'白痴翻牌，免於出局，之後不能投票（仍可發言）。':'被放逐者有遺言。')+'</p></section>';
   else if(S.tie)h+='<section class="card"><p class="note">今天無人被放逐。</p></section>';
   else h+='<section class="card"><h2>發言與投票</h2><p class="note">發言順序：'+(S.sheriff!=null?'由警長（'+S.sheriff+'號）決定從哪一側開始，警長最後歸票。':'從死者的下一位開始；平安夜由裁判指定。')+'平票時由平票者再發言一輪後重投，再平票則無人出局。'+(S.players.some(p=>p.idiot&&p.alive)?'已翻牌的白痴不能投票。':'')+'</p>'
-    +'<div class="row"><button class="btn pri" data-a="pickOpen" data-p="exile"'+(busy?' disabled':'')+'>記錄放逐</button><button class="btn" data-a="tie"'+(busy?' disabled':'')+'>無人出局</button></div>'
+    +(von?'<div class="row"><button class="btn pri" data-a="voteStart" data-p="exile"'+(busy||elect?' disabled':'')+'>'+(elect?'先完成警長競選':'開始放逐投票（玩家用手機投）')+'</button></div>':'')
+    +'<div class="row"><button class="btn'+(von?'':' pri')+'" data-a="pickOpen" data-p="exile"'+(busy?' disabled':'')+'>'+(von?'直接記錄放逐':'記錄放逐')+'</button><button class="btn" data-a="tie"'+(busy?' disabled':'')+'>無人出局</button></div>'
     +'<div class="row"><button class="btn red" data-a="pickOpen" data-p="boom">狼人自爆</button>'+(kn&&!S.knightUsed?'<button class="btn" data-a="pickOpen" data-p="duel">騎士決鬥</button>':'')+'<button class="btn" data-a="timer">發言計時</button></div></section>';
   h+=foot('<button class="btn'+(done&&!busy?' pri':'')+'" data-a="toNight"'+(busy?' disabled':'')+'>'+(busy?'先處理上方技能／警徽':'進入第 '+(S.round+1)+' 夜')+'</button>');
   return bar('第 '+S.round+' 天','sun')+statLine()+board()+h}
@@ -996,10 +1060,9 @@ function act(a,p,ev){
     case'pickOpen':{const x=p.split(':');S.pick={type:x[0],tid:+x[1]||0};S.sheet=null;break}
     case'pickCancel':S.pick=null;break;
     case'pickdo':{const k=S.pick;S.pick=null;const rm=()=>{S.todo=S.todo.filter(t=>t.id!==k.tid)};
-      if(k.type==='sheriff'){S.sheriff=id;S.sheriffDone=true;log(nm(id)+' 當選警長');if(!P(id).alive)S.todo.push({id:S.tid++,type:'badge',pid:id})}
-      else if(k.type==='exile'){const q=P(id);S.exiled=id;
-        if(q.role==='idiot'&&!q.idiot){q.idiot=true;log(nm(id)+' 被放逐，白痴翻牌免死，失去投票權')}else kill(id,'放逐')}
-      else if(k.type==='boom'){kill(id,'自爆');S.skip=true}
+      if(k.type==='sheriff')elect(id);
+      else if(k.type==='exile')exile(id);
+      else if(k.type==='boom'){kill(id,'自爆');S.skip=true;if(S.vote){S.vote=null;S.vres=null;log('投票中有人自爆，投票作廢')}}
       else if(k.type==='duel'){const kn=liveOf('knight');S.knightUsed=true;log('騎士 '+nm(kn.id)+' 決鬥 '+nm(id));
         if(isWolf(P(id))){kill(id,'騎士決鬥');S.skip=true}else kill(kn.id,'決鬥失敗')}
       else if(k.type==='shoot'){const t=S.todo.find(t=>t.id===k.tid);rm();if(t.lucky)S.lucky.used=true;kill(id,t.lucky?'幸運兒獵槍':ROLES[P(t.pid).role].n+'開槍')}
@@ -1010,7 +1073,18 @@ function act(a,p,ev){
     case'todoSkip':S.todo=S.todo.filter(t=>t.id!==id);log('放棄發動技能');break;
     case'tear':S.todo=S.todo.filter(t=>t.id!==id);S.sheriff=null;log('警徽撕毀');break;
     case'tie':S.tie=true;log('無人被放逐');break;
-    case'toNight':S.round++;S.phase='night';S.step=0;startNt();S.pick=null;S.todo=[];S.deaths=[];break;
+    case'toNight':S.round++;S.phase='night';S.step=0;startNt();S.pick=null;S.todo=[];S.deaths=[];S.vote=null;S.vres=null;break;
+    case'voteSetup':S.vote={type:'sheriff',stage:'setup',cand:[],voters:[],v:{},pk:0};break;
+    case'voteCand':{const V=S.vote;if(V&&V.stage==='setup'&&P(id)){const i=V.cand.indexOf(id);if(i>=0)V.cand.splice(i,1);else V.cand.push(id);V.cand.sort((x,y)=>x-y)}break}
+    case'voteStart':if(p==='sheriff'){const V=S.vote;if(V&&V.stage==='setup')voteOpen('sheriff',V.cand,vElig('sheriff').filter(x=>V.cand.indexOf(x)<0),0)}
+      else voteOpen('exile',alive().map(q=>q.id),vElig('exile'),0);break;
+    case'voteEnd':{const V=S.vote;if(V&&V.stage==='open'){V.stage='done';const L=voteLines(V,voteTally(V));S.vres={t:vTitle(V)+'結果',l:L};log(vTitle(V)+'：'+L.join('；'))}break}
+    case'voteBack':if(S.vote&&S.vote.stage==='done'){S.vote.stage='open';S.vres=null}break;
+    case'votePk':{const V=S.vote,T=V&&voteTally(V);if(V&&V.stage==='done'&&T.win.length>1){let vs=V.type==='sheriff'?V.voters:vElig('exile').filter(x=>T.win.indexOf(x)<0);if(!vs.length)vs=vElig(V.type);
+      voteOpen(V.type,T.win,vs,V.pk+1)}break}
+    case'voteApply':{const V=S.vote,T=V&&voteTally(V);if(V&&V.stage==='done'&&T.win.length===1){S.vote=null;const w=T.win[0];if(V.type==='sheriff')elect(w);else exile(w);vFinal(V.type==='sheriff'?w+'號 當選警長':P(w).alive?w+'號 被放逐，白痴翻牌免死':w+'號 被放逐')}break}
+    case'voteNone':{const V=S.vote;if(V&&V.stage==='done'){S.vote=null;if(V.type==='sheriff'){S.sheriffDone=true;S.sheriff=null;log('無警長');vFinal('無人當選，警徽流失')}else{S.tie=true;log('無人被放逐');vFinal('今天無人出局')}}break}
+    case'voteCancel':S.vote=null;S.vres=null;break;
     case'end':S.result=winner()||'裁判結束遊戲';S.phase='over';S.sheet=null;S.hide=false;break;
     case'toggleAlive':{const q=P(id);if(q.alive){q.alive=false;q.death={r:S.round,ph:S.phase,c:'裁判手動標記'};log(nm(id)+' 出局：裁判手動標記')}else{q.alive=true;q.death=null;log(nm(id)+' 復活（裁判修正）')}break}
     case'toggleSheriff':S.sheriff=S.sheriff===id?null:id;S.sheriffDone=true;break;
@@ -1019,7 +1093,7 @@ function act(a,p,ev){
     case'endTest':endTest();break;
   }
   save();render();
-  if(['next','prev','dawn','toNight','start','toAssign','toSetup','again','end','runTest','endTest'].indexOf(a)>=0)window.scrollTo(0,0);
+  if(['next','prev','dawn','toNight','start','toAssign','toSetup','again','end','runTest','endTest','voteSetup','voteStart','voteEnd','votePk','voteApply','voteNone','voteCancel'].indexOf(a)>=0)window.scrollTo(0,0);
 }
 document.addEventListener('click',function(ev){const el=ev.target.closest('[data-a]');if(!el||el.disabled)return;wake();
   const a=el.getAttribute('data-a'),p=el.getAttribute('data-p')||'';act(a,p,ev);
@@ -1033,6 +1107,7 @@ document.addEventListener('change',function(ev){const el=ev.target,c=el.getAttri
   if(c==='rule'){const v=el.value;S.cfg.rules[p]=v==='true'?true:v==='false'?false:v}
   if(c==='name')P(+p).name=el.value.trim();
   if(c==='role')P(+p).role=el.value||null;
+  if(c==='vproxy'){const V=S.vote,x=+p;if(V&&V.stage==='open'&&V.voters.indexOf(x)>=0){if(el.value==='')delete V.v[x];else if(el.value==='0'||V.cand.indexOf(+el.value)>=0)V.v[x]=+el.value}}
   save();if(c!=='name')render();else{
     const b=document.querySelector('.chip[data-p="'+p+'"] .nm');if(b)b.textContent=el.value.trim()}});
 /* 改名後 render 會重畫面板而失去輸入焦點，所以名字只就地更新座位文字 */
@@ -1100,7 +1175,7 @@ function owners(){const o={};Object.keys(NET.seats||{}).forEach(tk=>{const s=NET
 function stateFor(tk){const ow=owners(),seat=ow[NET.seats[tk]]===tk?NET.seats[tk]:0,p=seat&&P(seat);
   return{t:'state',code:NET.code,n:S.players.length,lock:NET.dealt||S.phase!=='assign',seat:seat,name:NET.names[tk]||'',
     seats:S.players.map(q=>({id:q.id,name:q.name,alive:q.alive,taken:!!ow[q.id],free:!ow[q.id]&&(NET.gone||{})[q.id]!=null&&inGame()})),pz:pausedSeats().map(x=>x.id),
-    play:playMode(),role:playMode()!=='cards'&&(NET.dealt||S.phase==='night'||S.phase==='day'||S.phase==='over')&&p&&p.role?AK(p):null,alive:p?p.alive:true,pk:S.phase==='night'||S.phase==='day'||S.phase==='over'?S.phase:'',online:!!(playMode()==='online'),
+    play:playMode(),role:playMode()!=='cards'&&(NET.dealt||S.phase==='night'||S.phase==='day'||S.phase==='over')&&p&&p.role?AK(p):null,alive:p?p.alive||(electing()&&!!p.death&&p.death.ph==='night'):true,vres:voteOn()&&S.vres?S.vres:null,pk:S.phase==='night'||S.phase==='day'||S.phase==='over'?S.phase:'',online:!!(playMode()==='online'),
     stp:(playMode()==='online')&&S.phase==='night'?STEPN[nightSteps()[Math.min(S.step,nightSteps().length-1)]]||'':'',act:actFor(p),
     lucky:(playMode()==='online')&&p&&S.lucky&&S.lucky.pid===p.id&&!S.lucky.used?S.lucky.item:'',
     ph:S.phase==='night'?'第 '+S.round+' 夜':S.phase==='day'?'第 '+S.round+' 天':S.phase==='over'?'遊戲結束':'',over:S.phase==='over'?S.result:''}}
@@ -1175,7 +1250,12 @@ function nightOpts(){const doc=new DOMParser().parseFromString('<div>'+vNight()+
   doc.querySelectorAll('section [data-a]').forEach(e=>{const a=e.getAttribute('data-a'),p=e.getAttribute('data-p')||'';if(!GT[a])return;
     const id=+p,chip=e.classList.contains('chip');
     o.push({a:a,p:p,label:chip&&P(id)?id+'號'+(P(id).name?' '+P(id).name:''):e.textContent.trim().slice(0,24),sel:e.classList.contains('sel'),dis:e.disabled})});return o}
-function actFor(p){if(!(playMode()==='online')||!p)return null;
+function actFor(p){if(!p)return null;
+  if(S.phase==='day'&&S.vote&&S.vote.stage==='open'&&voteOn()){const V=S.vote,my=V.v[p.id];
+    if(V.voters.indexOf(p.id)<0)return V.cand.indexOf(p.id)>=0&&V.voters.length?{st:'vote',title:vTitle(V),info:[V.type==='sheriff'?'你上警了，這一輪不投票，等其他人投完。':'你在平票名單上，這一輪不投票。'],big:null,groups:[]}:null;
+    return{st:'vote',title:vTitle(V),info:[(V.type==='sheriff'?'選一位你支持的警長。':'選一位你要放逐的玩家。')+(vW(V,p.id)>1?'你是警長，算 1.5 票。':'')],big:null,
+      groups:[{label:'投給誰',a:'vote',opts:V.cand.map(c=>({p:String(c),label:c+'號'+(P(c).name?' '+P(c).name:''),sel:my===c,dis:false})).concat([{p:'0',label:'棄票',sel:my===0,dis:false}])}]}}
+  if(!(playMode()==='online'))return null;
   if(S.phase==='day'){const t=S.todo.find(t=>t.type==='shoot'&&t.pid===p.id);if(!t||S.pick)return null;
     return{st:'shoot',title:t.lucky?'交易來的獵槍':'發動技能',info:['你可以開槍帶走一名玩家，也可以不開。'],big:null,
       groups:[{label:'開槍帶走誰',a:'shoot:'+t.id,opts:alive().map(q=>({p:String(q.id),label:q.id+'號'+(q.name?' '+q.name:''),sel:false,dis:false})).concat([{p:'0',label:'不開槍',sel:false,dis:false}])}]}}
@@ -1196,8 +1276,10 @@ function actFor(p){if(!(playMode()==='online')||!p)return null;
   const all=acts.length?nightOpts().filter(o=>acts.indexOf(o.a)>=0):[],groups=[];
   acts.forEach(a=>{const opts=all.filter(o=>o.a===a).map(o=>({p:o.p,label:o.label,sel:o.sel,dis:o.dis||((a==='check'&&n.check!=null)||(a==='lcheck'&&n.lcheck!=null))}));if(opts.length)groups.push({label:GT[a],a:a,opts:opts})});
   return{st:st,title:st==='lucky'?'幸運兒':st==='bros'?'狼兄弟互認':ROLES[p.role].n+'行動',info:info,big:big,groups:groups}}
-function hostAct(seat,d){const p=P(seat);if(!(playMode()==='online')||!p)return;const a=String(d.a||''),pp=String(d.p==null?'':d.p),A=actFor(p);if(!A)return;
+function hostAct(seat,d){const p=P(seat);if(!p)return;const a=String(d.a||''),pp=String(d.p==null?'':d.p),A=actFor(p);if(!A)return;
   const g=A.groups.find(g=>g.a===a),o=g&&g.opts.find(o=>o.p===pp);if(!o||o.dis)return;
+  if(A.st==='vote'){voteCast(seat,+pp);return}
+  if(playMode()!=='online')return;
   if(A.st==='shoot'){const tid=+a.split(':')[1];if(pp==='0')act('todoSkip',String(tid));else{act('pickOpen','shoot:'+tid);act('pickdo',pp)}}
   else act(a,pp)}
 /* 裁判畫面上的提示：這一步在等誰 */
@@ -1214,10 +1296,11 @@ function vAct(v){if(v.pz&&v.pz.length)return'';const A=v.act;if(!A)return v.onli
   return '<section class="card actc"><h2>'+esc(A.title)+'</h2>'+(A.big?'<div class="big '+A.big.tone+'">'+esc(A.big.t)+'</div>':'')+A.info.map(x=>'<p class="note">'+esc(x)+'</p>').join('')
     +A.groups.map(g=>'<h3>'+esc(g.label)+'</h3><div class="pacts">'+g.opts.map(o=>{const k=g.a+'|'+o.p,pd=pend===k;
       return '<button class="btn sm'+(o.sel?' sel':'')+(pd?' pend':'')+'" data-n="pact" data-p="'+esc(k)+'"'+(o.dis?' disabled':'')+'>'+(pd?'再點一次確認：':'')+esc(o.label)+'</button>'}).join('')+'</div>').join('')
-    +(A.groups.length?'<p class="note">選好後等裁判進入下一步；在那之前可以改'+(A.groups.some(g=>g.a==='check'||g.a==='lcheck')?'（查驗除外，確認後不能改）':'')+'。</p>':'')+'</section>'}
+    +(A.st==='vote'?(A.groups.length?'<p class="note">選好會亮起來，裁判結算前都可以改；再點一次同一個＝收回。別人看不到你投給誰，結算後才公開。</p>':''):A.groups.length?'<p class="note">選好後等裁判進入下一步；在那之前可以改'+(A.groups.some(g=>g.a==='check'||g.a==='lcheck')?'（查驗除外，確認後不能改）':'')+'。</p>':'')+'</section>'}
+function vRes(v){const r=v.vres;return r&&r.l.length?'<section class="card"><h2>'+esc(r.t)+'</h2><ul class="log">'+r.l.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></section>':''}
 function pvClean(d){if(!d||typeof d!=='object'||d.t!=='state'||!Array.isArray(d.seats))return null;const n=Math.min(30,d.seats.length);
   const seat=Number.isInteger(d.seat)&&d.seat>=1&&d.seat<=n?d.seat:0,role=typeof d.role==='string'&&(ROLES[d.role]||d.role==='wolfyb2')&&FX[d.role]?d.role:null;
-  return{n:n,seat:seat,role:role,lock:!!d.lock,alive:d.alive!==false,name:clean(d.name),ph:String(d.ph||'').slice(0,12),pk:d.pk==='night'||d.pk==='day'||d.pk==='over'?d.pk:'',online:!!d.online,play:d.play==='cards'||d.play==='online'?d.play:'phone',stp:String(d.stp||'').slice(0,8),lucky:ITEM[d.lucky]?d.lucky:'',act:actClean(d.act),over:String(d.over||'').slice(0,60),
+  return{n:n,seat:seat,role:role,lock:!!d.lock,alive:d.alive!==false,name:clean(d.name),ph:String(d.ph||'').slice(0,12),pk:d.pk==='night'||d.pk==='day'||d.pk==='over'?d.pk:'',online:!!d.online,play:d.play==='cards'||d.play==='online'?d.play:'phone',stp:String(d.stp||'').slice(0,8),lucky:ITEM[d.lucky]?d.lucky:'',act:actClean(d.act),vres:d.vres&&typeof d.vres==='object'&&Array.isArray(d.vres.l)?{t:String(d.vres.t||'').slice(0,20),l:d.vres.l.slice(0,34).map(x=>String(x==null?'':x).slice(0,140))}:null,over:String(d.over||'').slice(0,60),
     pz:(Array.isArray(d.pz)?d.pz:[]).slice(0,30).map(x=>x|0).filter(x=>x>=1&&x<=n),
     seats:d.seats.slice(0,n).map((q,i)=>({id:i+1,name:clean(q&&q.name),taken:!!(q&&q.taken),free:!!(q&&q.free)}))}}
 /* 連線分三段，每段各自計時：卡在哪一段、可能是什麼原因，直接寫在畫面上，截圖就能判斷 */
@@ -1242,7 +1325,8 @@ function playerConnect(quiet){netKill();clearTimeout(stageT);
         else if(o){if(v.pk!==o.pk||v.ph!==o.ph){if(v.pk==='night')announce('moon','天黑請閉眼',v.ph);else if(v.pk==='day')announce('sun','天亮了',v.ph);else if(v.pk==='over')announce('','遊戲結束',v.over)}
           else if(o.alive&&!v.alive)announce('','你已出局','請保持安靜，不要透露身份');
           else if(!o.role&&v.role)announce('','發牌了','點一下卡片看你的身份');
-          else if(v.act&&(!o.act||o.act.st!==v.act.st)){pend='';announce('','輪到你了',v.act.title)}
+          else if(v.vres&&(!o.vres||o.vres.l.join()!==v.vres.l.join()))announce('',v.vres.t,(v.vres.l[v.vres.l.length-1]||'').replace('結果：',''));
+          else if(v.act&&(!o.act||o.act.st!==v.act.st||(v.act.st==='vote'&&o.act.title!==v.act.title))){pend='';if(v.act.st==='vote')announce('',v.act.groups.length?'請投票':'投票開始',v.act.title);else announce('','輪到你了',v.act.title)}
           else if(v.lucky&&!o.lucky)announce('','你是幸運兒','獲得'+ITEM[v.lucky])}
         soft()});
       cn.on('close',function(){if(peer!==my)return;netSt='連線中斷，重新連線中…';soft();again()})});
@@ -1264,7 +1348,7 @@ function vPlayer(){const hd=t=>'<header class="bar"><h1>'+(PV&&PV.pk&&ICON[PV.pk
   const v=PV,st=(netSt!=='ok'?'<p class="note w">'+esc(netSt)+'</p>':'')+(v&&v.pz&&v.pz.length?'<section class="card pzc"><h2>遊戲暫停</h2><p class="note">等 '+v.pz.map(x=>x+'號').join('、')+' 重新連線，或由裁判決定繼續。這段時間不能操作。</p></section>':'');
   if(!v)return hd('房間 '+NET.code)+'<section class="card"><h2>正在加入房間</h2>'+(st||'<p class="note">連線中…</p>')+'</section>';
   if(v.role&&v.seat){const r=RI(v.role),me=v.seats[v.seat-1]||{};
-    return hd('房間 '+NET.code)+st+vAct(v)+'<section class="card"><h2>'+v.seat+'號'+(v.name?'・'+esc(v.name):'')+'<small>'+esc(v.ph||'等待開始')+'</small></h2>'
+    return hd('房間 '+NET.code)+st+vAct(v)+vRes(v)+'<section class="card"><h2>'+v.seat+'號'+(v.name?'・'+esc(v.name):'')+'<small>'+esc(v.ph||'等待開始')+'</small></h2>'
       +(v.alive===false?'<p class="note w">你已出局。</p>':'')+(v.lucky?'<p class="note on">你是幸運兒：持有交易來的'+ITEM[v.lucky]+'。</p>':'')+(v.over?'<p class="say">'+esc(v.over)+'</p>':'')
       +'<div class="pwrap'+(faceUp()?' show':'')+'"><div class="stage3d"><div class="c3d" style="transform:rotateX('+tilt.rx.toFixed(2)+'deg) rotateY('+tilt.ry.toFixed(2)+'deg)"><i class="cf av-'+v.role+'">'+layers(v.role)+'<u class="gl"></u><b class="cn">'+RI(v.role).n+'</b></i><i class="cb av-back"></i></div></div>'
       +'<div class="pinfo"><h2 class="c-'+r.t+'">'+r.n+'<small class="ct">'+TEAM[r.t]+'</small></h2><p class="say" style="margin:0">'+FX[v.role]+'</p></div></div>'

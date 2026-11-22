@@ -140,6 +140,13 @@ open(f,'w',encoding='utf-8').write(s)
 
 玩家每 4 秒送心跳，12 秒沒消息算離線。只有線上玩會暫停（`pausedSeats()`），因為現場玩時大家晚上本來就會把手機蓋著。
 
+### 投票（`S.vote`、`S.vres`）
+
+- 只在 `voteOn()`（有開房間、玩法不是現場有牌）時出現。`S.vote={type:'sheriff'|'exile',stage:'setup'|'open'|'done',cand,voters,v:{座位:候選人或0},pk}`；`S.vres={t,l}` 是結算後公開給玩家的文字，進夜晚時清掉。
+- 玩家端沿用線上玩的行動面板：`actFor()` 在投票開著時回傳 `st:'vote'`，玩家點選走 `hostAct()` → `voteCast()`。`voteCast` 不呼叫 `snap()`，玩家的票不佔復原紀錄。
+- 裁判畫面是 `vVote()`，由 `vDay()` 在 `S.vote` 存在時接手。計票在 `voteTally()`，警長 1.5 票在 `vW()`。
+- `electing()` 為真時，`stateFor()` 會把昨夜死者的 `alive` 先報成 true。
+
 ## 改完怎麼驗證
 
 ```bash
@@ -152,7 +159,7 @@ cd tools/e2e && node run.mjs
 
 第一次要先在 `tools/e2e` 跑 `npm install`。它用的是這台電腦上已安裝的 Chrome，不會另外下載瀏覽器。
 
-測試會開一個裁判加最多八個玩家的無頭瀏覽器，真的透過 PeerJS 連線。可以只跑一組：`node run.mjs cards`、`names`、`phone`、`online`、`pause`。加 `HEADED=1` 可以看畫面。
+測試會開一個裁判加最多八個玩家的無頭瀏覽器，真的透過 PeerJS 連線。可以只跑一組：`node run.mjs cards`、`names`、`phone`、`online`、`vote`、`pause`。加 `HEADED=1` 可以看畫面。
 
 目前 103 項。新增功能時請一起加斷言，尤其是「誰看得到什麼」這類資訊隔離。
 

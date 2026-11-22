@@ -17,6 +17,7 @@ const BASE = `http://127.0.0.1:${server.address().port}/`;
 const browser = await chromium.launch({ channel: 'chrome', headless: !process.env.HEADED });
 let pass = 0, fail = 0; const fails = [];
 const ok = (cond, name, extra = '') => { if (cond) { pass++; console.log('  ✓ ' + name); } else { fail++; fails.push(name); console.log('  ✗ ' + name + (extra ? '  → ' + extra : '')); } };
+const shot = async (page, name) => { if (process.env.SHOTS) { await sleep(2900); await page.screenshot({ path: process.env.SHOTS + '/' + name + '.png', fullPage: true }); } };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const state = page => page.evaluate(() => JSON.parse(localStorage.getItem('wwj-state-v1')).S);
@@ -338,12 +339,96 @@ async function testPause() {
   await closeAll(h, wolf, seer);
 }
 
+/* ───────── 投票：警長與放逐 ───────── */
+async function testVote() {
+  console.log('\n【投票】玩家用手機投警長、投放逐，裁判即時看票再結算');
+  const h = await newHost(HEI, { sheriff: true }); await nact(h.page, 'mode', 'phone'); await act(h.page, 'close'); await act(h.page, 'deal');
+  const S0 = await state(h.page), ids = r => S0.players.filter(p => p.role === r).map(p => p.id);
+  const [v1, v2] = ids('villager'), X = ids('hunter')[0];
+  const A = await newPlayer(h.code, '甲'), B = await newPlayer(h.code, '乙'), C = await newPlayer(h.code, '丙'), D = await newPlayer(h.code, '丁');
+  await sit(A, ids('wolf')[0]); await sit(B, ids('seer')[0]); await sit(C, ids('witch')[0]); await sit(D, v1);
+  await act(h.page, 'start'); await gotoStep(h.page, '狼人'); await act(h.page, 'kill', v1); await gotoStep(h.page, '天亮'); await act(h.page, 'dawn');
+  const vote = async () => (await state(h.page)).vote, ht = () => text(h.page);
+  ok(await until(async () => (await text(D.page)).includes('第 1 天'), '天亮'), '天亮');
+  ok(!(await state(h.page)).players[v1 - 1].alive && !(await text(D.page)).includes('你已出局'), '警長競選還沒結束：昨夜死的人手機先不顯示出局');
+  ok((await ht()).includes('開始警長投票'), '裁判台出現「開始警長投票」');
+  await act(h.page, 'voteSetup');
+  await shot(h.page, '0-day-elect-setup-empty');
+  ok(await h.page.evaluate(() => document.querySelector('[data-a="voteStart"]').disabled), '還沒選上警的人：不能開始投票');
+  await act(h.page, 'voteCand', A.seat); await act(h.page, 'voteCand', X);
+  await shot(h.page, '1-setup');
+  await act(h.page, 'voteStart', 'sheriff');
+  let V = await vote();
+  ok(V.stage === 'open' && V.cand.join() === [A.seat, X].sort((a, b) => a - b).join() && V.voters.length === 10 && V.voters.includes(v1), '開票：兩位候選人，其餘十人（含昨夜死者）可投');
+  ok(await until(() => hasPanel(B.page), '投票面板'), '沒上警的玩家手機跳出投票面板');
+  ok(await pacts(B.page) === 3, '選項是兩位候選人加棄票');
+  ok(await until(async () => (await text(A.page)).includes('你上警了'), '候選人提示') && await pacts(A.page) === 0, '上警的玩家看到提示、沒有投票選項');
+  await pact(B.page, A.seat + '號');
+  ok(await until(async () => (await vote()).v[B.seat] === A.seat, '乙的票'), '玩家投票即時出現在裁判台資料');
+  ok(await until(async () => (await ht()).includes('已投 1／10'), '票數'), '裁判畫面即時顯示已投人數');
+  ok(!(await text(C.page)).includes(B.seat + '號：') && !(await text(C.page)).includes('1 票'), '結算前其他玩家看不到票況');
+  await pact(C.page, X + '號'); await until(async () => (await vote()).v[C.seat] === X, '丙的票');
+  await pact(C.page, A.seat + '號');
+  ok(await until(async () => (await vote()).v[C.seat] === A.seat, '改票'), '結算前可以改票');
+  await pact(D.page, '棄票');
+  ok(await until(async () => (await vote()).v[D.seat] === 0, '棄票'), '昨夜死者也能投（這裡投棄票）');
+  await h.page.selectOption('[data-c="vproxy"][data-p="' + v2 + '"]', String(X));
+  ok((await vote()).v[v2] === X && (await ht()).includes('已投 4／10'), '裁判可以替沒連線的人代投');
+  await shot(h.page, '2-open-judge'); await shot(B.page, '3-open-player'); await shot(A.page, '4-open-candidate');
+  await act(h.page, 'voteEnd');
+  ok((await vote()).stage === 'done' && (await ht()).includes('結果：' + A.seat + '號 當選警長'), '結算：兩票對一票，顯示當選者');
+  ok(await until(async () => { const t = await text(B.page); return t.includes('警長投票結果') && t.includes(A.seat + '號：2 票') && t.includes('當選警長'); }, '公開結果'), '結算後票況公開到玩家手機');
+  ok(!(await hasPanel(B.page)), '結算後投票面板收起');
+  await shot(h.page, '5-done-judge'); await shot(B.page, '6-done-player');
+  ok((await state(h.page)).sheriff == null, '裁判確認前還沒真的記錄警長');
+  await act(h.page, 'voteApply');
+  ok((await state(h.page)).sheriff === A.seat && (await state(h.page)).vote == null, '確認後記錄警長');
+  await act(h.page, 'voteStart', 'exile'); await act(h.page, 'pickOpen', 'boom'); await act(h.page, 'pickCancel');
+  ok((await vote()).stage === 'open', '投票中點自爆再取消：投票還在');
+  await act(h.page, 'voteCancel');
+  ok((await vote()) == null && (await ht()).includes('開始放逐投票'), '取消投票回到白天畫面');
+  ok(await until(async () => (await text(D.page)).includes('你已出局'), '出局'), '競選結束後，昨夜死者手機才顯示出局');
+
+  await shot(h.page, '7-day-after-sheriff');
+  console.log('  — 放逐投票與平票重投');
+  await act(h.page, 'voteStart', 'exile'); V = await vote();
+  ok(V.cand.length === 11 && !V.voters.includes(v1), '放逐投票：活著的十一人可投，死者不能投');
+  ok(await until(() => hasPanel(B.page), '放逐面板') && !(await hasPanel(D.page)), '活人手機跳出放逐投票，死者沒有');
+  await pact(B.page, C.seat + '號'); await pact(C.page, B.seat + '號'); await pact(A.page, '棄票');
+  await until(async () => Object.keys((await vote()).v).length === 3, '三票');
+  await act(h.page, 'voteEnd');
+  ok((await ht()).includes('平票'), '一比一：結算顯示平票');
+  await shot(h.page, '8-tie-judge');
+  await act(h.page, 'votePk'); V = await vote();
+  ok(V.pk === 1 && V.cand.length === 2 && !V.voters.includes(B.seat) && !V.voters.includes(C.seat) && V.voters.length === 9, '平票重投：只剩平票兩人當候選，他們自己不投');
+  ok(await until(async () => (await text(B.page)).includes('平票名單'), '平票提示') && await pacts(B.page) === 0, '平票的人手機顯示不投票');
+  ok(await until(async () => await pacts(A.page) === 3, '警長面板') && (await text(A.page)).includes('1.5 票'), '警長的投票面板註明 1.5 票');
+  await pact(A.page, B.seat + '號'); await until(async () => (await vote()).v[A.seat] === B.seat, '警長票');
+  await h.page.selectOption('[data-c="vproxy"][data-p="' + v2 + '"]', String(C.seat));
+  await shot(h.page, '9-pk-open-judge'); await shot(A.page, '10-pk-sheriff-player');
+  await act(h.page, 'voteEnd');
+  ok((await ht()).includes(B.seat + '號 得票最高') && (await ht()).includes('1.5 票'), '警長 1.5 票勝過一般的一票');
+  await act(h.page, 'voteApply');
+  const S1 = await state(h.page);
+  ok(S1.exiled === B.seat && !S1.players[B.seat - 1].alive && S1.vote == null, '確認後放逐得票最高的人');
+  ok(await until(async () => (await text(B.page)).includes('你已出局'), '被放逐者'), '被放逐的玩家手機顯示出局');
+  ok((await text(C.page)).includes('結果：' + B.seat + '號 被放逐'), '確認後玩家手機上的結果改成「被放逐」');
+  await act(h.page, 'undo');
+  ok((await state(h.page)).players[B.seat - 1].alive && (await vote()).stage === 'done', '復原一步：回到結算畫面，票還在');
+  await act(h.page, 'voteApply');
+  await shot(h.page, '11-day-after-exile');
+  await act(h.page, 'toNight');
+  ok(await until(async () => !(await text(C.page)).includes('投票結果'), '清結果'), '進入夜晚後，玩家手機上的投票結果收起');
+  await closeAll(h, A, B, C, D);
+}
+
 const only = process.argv[2];
 try {
   if (!only || only === 'cards') await testCards();
   if (!only || only === 'names') await testNames();
   if (!only || only === 'phone') await testPhone();
   if (!only || only === 'online') await testOnline();
+  if (!only || only === 'vote') await testVote();
   if (!only || only === 'pause') await testPause();
 } catch (e) { fail++; fails.push('測試中斷：' + e.message); console.log('\n✗ 測試中斷：' + e.message); }
 await browser.close(); server.close();
