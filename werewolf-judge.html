@@ -77,6 +77,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .actc{border-color:var(--moon)}
 .actc h3{margin:6px 0 0;font-size:.9rem;color:var(--muted);font-weight:600}
 .votec{gap:10px}
+.vh{margin:4px 0 -6px;font-size:.9rem;color:var(--moon);font-weight:700}
 .vrow{display:grid;grid-template-columns:minmax(4.2rem,auto) 1fr auto;align-items:center;gap:2px 8px}
 .vrow b{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:8.5rem}
 .vrow em{font-style:normal;font-weight:700;font-variant-numeric:tabular-nums}
@@ -743,7 +744,9 @@ function voteLines(V,T){const z=T.rows.filter(r=>!r.n).map(r=>r.id+'號'),l=T.ro
 /* 玩家投票不進復原紀錄，免得一人一票把「上一步」洗掉 */
 function voteCast(id,t){const V=S.vote;if(!V||V.stage!=='open'||V.voters.indexOf(id)<0||(t!==0&&V.cand.indexOf(t)<0))return;
   if(V.v[id]===t)delete V.v[id];else V.v[id]=t;save();soft()}
-function vFinal(t){if(S.vres&&S.vres.l.length)S.vres.l[S.vres.l.length-1]='結果：'+t}
+function vFinal(t){if(S.vres&&S.vres.l.length)S.vres.l[S.vres.l.length-1]='結果：'+t;vKeep()}
+/* 每一輪的票型都留著，大家之後還要回頭對票 */
+function vKeep(){if(!S.vres)return;(S.vlog||(S.vlog=[])).push({t:'第 '+S.round+' 天 '+S.vres.t.replace('結果',''),l:S.vres.l.slice()});if(S.vlog.length>24)S.vlog.shift()}
 function elect(id){S.sheriff=id;S.sheriffDone=true;log(nm(id)+' 當選警長');if(!P(id).alive)S.todo.push({id:S.tid++,type:'badge',pid:id})}
 function exile(id){const q=P(id);S.exiled=id;
   if(q.role==='idiot'&&!q.idiot){q.idiot=true;log(nm(id)+' 被放逐，白痴翻牌免死，失去投票權')}else kill(id,'放逐')}
@@ -1081,7 +1084,7 @@ function act(a,p,ev){
     case'voteEnd':{const V=S.vote;if(V&&V.stage==='open'){V.stage='done';const L=voteLines(V,voteTally(V));S.vres={t:vTitle(V)+'結果',l:L};log(vTitle(V)+'：'+L.join('；'))}break}
     case'voteBack':if(S.vote&&S.vote.stage==='done'){S.vote.stage='open';S.vres=null}break;
     case'votePk':{const V=S.vote,T=V&&voteTally(V);if(V&&V.stage==='done'&&T.win.length>1){let vs=V.type==='sheriff'?V.voters:vElig('exile').filter(x=>T.win.indexOf(x)<0);if(!vs.length)vs=vElig(V.type);
-      voteOpen(V.type,T.win,vs,V.pk+1)}break}
+      vKeep();voteOpen(V.type,T.win,vs,V.pk+1)}break}
     case'voteApply':{const V=S.vote,T=V&&voteTally(V);if(V&&V.stage==='done'&&T.win.length===1){S.vote=null;const w=T.win[0];if(V.type==='sheriff')elect(w);else exile(w);vFinal(V.type==='sheriff'?w+'號 當選警長':P(w).alive?w+'號 被放逐，白痴翻牌免死':w+'號 被放逐')}break}
     case'voteNone':{const V=S.vote;if(V&&V.stage==='done'){S.vote=null;if(V.type==='sheriff'){S.sheriffDone=true;S.sheriff=null;log('無警長');vFinal('無人當選，警徽流失')}else{S.tie=true;log('無人被放逐');vFinal('今天無人出局')}}break}
     case'voteCancel':S.vote=null;S.vres=null;break;
@@ -1175,7 +1178,7 @@ function owners(){const o={};Object.keys(NET.seats||{}).forEach(tk=>{const s=NET
 function stateFor(tk){const ow=owners(),seat=ow[NET.seats[tk]]===tk?NET.seats[tk]:0,p=seat&&P(seat);
   return{t:'state',code:NET.code,n:S.players.length,lock:NET.dealt||S.phase!=='assign',seat:seat,name:NET.names[tk]||'',
     seats:S.players.map(q=>({id:q.id,name:q.name,alive:q.alive,taken:!!ow[q.id],free:!ow[q.id]&&(NET.gone||{})[q.id]!=null&&inGame()})),pz:pausedSeats().map(x=>x.id),
-    play:playMode(),role:playMode()!=='cards'&&(NET.dealt||S.phase==='night'||S.phase==='day'||S.phase==='over')&&p&&p.role?AK(p):null,alive:p?p.alive||(electing()&&!!p.death&&p.death.ph==='night'):true,vres:voteOn()&&S.vres?S.vres:null,pk:S.phase==='night'||S.phase==='day'||S.phase==='over'?S.phase:'',online:!!(playMode()==='online'),
+    play:playMode(),role:playMode()!=='cards'&&(NET.dealt||S.phase==='night'||S.phase==='day'||S.phase==='over')&&p&&p.role?AK(p):null,alive:p?p.alive||(electing()&&!!p.death&&p.death.ph==='night'):true,vres:voteOn()&&S.vres?S.vres:null,vlog:voteOn()?(S.vlog||[]).slice(-12):[],pk:S.phase==='night'||S.phase==='day'||S.phase==='over'?S.phase:'',online:!!(playMode()==='online'),
     stp:(playMode()==='online')&&S.phase==='night'?STEPN[nightSteps()[Math.min(S.step,nightSteps().length-1)]]||'':'',act:actFor(p),
     lucky:(playMode()==='online')&&p&&S.lucky&&S.lucky.pid===p.id&&!S.lucky.used?S.lucky.item:'',
     ph:S.phase==='night'?'第 '+S.round+' 夜':S.phase==='day'?'第 '+S.round+' 天':S.phase==='over'?'遊戲結束':'',over:S.phase==='over'?S.result:''}}
@@ -1298,9 +1301,11 @@ function vAct(v){if(v.pz&&v.pz.length)return'';const A=v.act;if(!A)return v.onli
       return '<button class="btn sm'+(o.sel?' sel':'')+(pd?' pend':'')+'" data-n="pact" data-p="'+esc(k)+'"'+(o.dis?' disabled':'')+'>'+(pd?'再點一次確認：':'')+esc(o.label)+'</button>'}).join('')+'</div>').join('')
     +(A.st==='vote'?(A.groups.length?'<p class="note">選好會亮起來，裁判結算前都可以改；再點一次同一個＝收回。別人看不到你投給誰，結算後才公開。</p>':''):A.groups.length?'<p class="note">選好後等裁判進入下一步；在那之前可以改'+(A.groups.some(g=>g.a==='check'||g.a==='lcheck')?'（查驗除外，確認後不能改）':'')+'。</p>':'')+'</section>'}
 function vRes(v){const r=v.vres;return r&&r.l.length?'<section class="card"><h2>'+esc(r.t)+'</h2><ul class="log">'+r.l.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></section>':''}
+function vHist(v){const cur=v.vres?v.vres.l.join('|'):'',a=v.vlog.filter(x=>x.l.join('|')!==cur).reverse();
+  return a.length?'<section class="card"><h2>票型紀錄<small>新的在上面</small></h2>'+a.map(x=>'<h3 class="vh">'+esc(x.t)+'</h3><ul class="log">'+x.l.map(y=>'<li>'+esc(y)+'</li>').join('')+'</ul>').join('')+'</section>':''}
 function pvClean(d){if(!d||typeof d!=='object'||d.t!=='state'||!Array.isArray(d.seats))return null;const n=Math.min(30,d.seats.length);
   const seat=Number.isInteger(d.seat)&&d.seat>=1&&d.seat<=n?d.seat:0,role=typeof d.role==='string'&&(ROLES[d.role]||d.role==='wolfyb2')&&FX[d.role]?d.role:null;
-  return{n:n,seat:seat,role:role,lock:!!d.lock,alive:d.alive!==false,name:clean(d.name),ph:String(d.ph||'').slice(0,12),pk:d.pk==='night'||d.pk==='day'||d.pk==='over'?d.pk:'',online:!!d.online,play:d.play==='cards'||d.play==='online'?d.play:'phone',stp:String(d.stp||'').slice(0,8),lucky:ITEM[d.lucky]?d.lucky:'',act:actClean(d.act),vres:d.vres&&typeof d.vres==='object'&&Array.isArray(d.vres.l)?{t:String(d.vres.t||'').slice(0,20),l:d.vres.l.slice(0,34).map(x=>String(x==null?'':x).slice(0,140))}:null,over:String(d.over||'').slice(0,60),
+  return{n:n,seat:seat,role:role,lock:!!d.lock,alive:d.alive!==false,name:clean(d.name),ph:String(d.ph||'').slice(0,12),pk:d.pk==='night'||d.pk==='day'||d.pk==='over'?d.pk:'',online:!!d.online,play:d.play==='cards'||d.play==='online'?d.play:'phone',stp:String(d.stp||'').slice(0,8),lucky:ITEM[d.lucky]?d.lucky:'',act:actClean(d.act),vlog:(Array.isArray(d.vlog)?d.vlog:[]).slice(0,12).filter(x=>x&&typeof x==='object'&&Array.isArray(x.l)).map(x=>({t:String(x.t||'').slice(0,26),l:x.l.slice(0,34).map(y=>String(y==null?'':y).slice(0,140))})),vres:d.vres&&typeof d.vres==='object'&&Array.isArray(d.vres.l)?{t:String(d.vres.t||'').slice(0,20),l:d.vres.l.slice(0,34).map(x=>String(x==null?'':x).slice(0,140))}:null,over:String(d.over||'').slice(0,60),
     pz:(Array.isArray(d.pz)?d.pz:[]).slice(0,30).map(x=>x|0).filter(x=>x>=1&&x<=n),
     seats:d.seats.slice(0,n).map((q,i)=>({id:i+1,name:clean(q&&q.name),taken:!!(q&&q.taken),free:!!(q&&q.free)}))}}
 /* 連線分三段，每段各自計時：卡在哪一段、可能是什麼原因，直接寫在畫面上，截圖就能判斷 */
@@ -1353,7 +1358,7 @@ function vPlayer(){const hd=t=>'<header class="bar"><h1>'+(PV&&PV.pk&&ICON[PV.pk
       +'<div class="pwrap'+(faceUp()?' show':'')+'"><div class="stage3d"><div class="c3d" style="transform:rotateX('+tilt.rx.toFixed(2)+'deg) rotateY('+tilt.ry.toFixed(2)+'deg)"><i class="cf av-'+v.role+'">'+layers(v.role)+'<u class="gl"></u><b class="cn">'+RI(v.role).n+'</b></i><i class="cb av-back"></i></div></div>'
       +'<div class="pinfo"><h2 class="c-'+r.t+'">'+r.n+'<small class="ct">'+TEAM[r.t]+'</small></h2><p class="say" style="margin:0">'+FX[v.role]+'</p></div></div>'
       +'<p class="note" style="text-align:center">點一下卡片翻面，左右拖曳可以旋轉。正面 10 秒後會自動蓋回，換階段時也會；翻開前確認旁邊沒人看得到螢幕。</p>'
-      +motionBtn()+'</section>'}
+      +motionBtn()+'</section>'+vHist(v)}
   if(v.seat&&v.pk&&!v.role)return hd('房間 '+NET.code)+st+'<section class="card"><h2>'+v.seat+'號'+(v.name?'・'+esc(v.name):'')+'<small>'+esc(v.ph)+'</small></h2>'
     +(v.alive===false?'<p class="note w">你已出局。</p>':'')+(v.over?'<p class="say">'+esc(v.over)+'</p>':'')
     +'<p class="note">'+(v.play==='cards'?'這一局用實體牌，身份看你手上的牌。手機只顯示目前階段。':'裁判還沒記錄你的身份，稍等一下。')+'</p></section>';

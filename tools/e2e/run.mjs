@@ -419,6 +419,9 @@ async function testVote() {
   await shot(h.page, '11-day-after-exile');
   await act(h.page, 'toNight');
   ok(await until(async () => !(await text(C.page)).includes('投票結果'), '清結果'), '進入夜晚後，玩家手機上的投票結果收起');
+  const ct = await text(C.page);
+  ok(ct.includes('票型紀錄') && ct.includes('第 1 天 警長投票') && ct.includes('第 1 天 放逐投票（平票重投）') && ct.includes(B.seat + '號：1.5 票') && ct.includes(C.seat + '號：1 票（' + B.seat + '號）'), '進入夜晚後，玩家手機仍看得到當天每一輪的票型（含平票前那一輪）', ct.slice(-400));
+  ok((await text(D.page)).includes('票型紀錄'), '出局的玩家也看得到票型紀錄');
   await closeAll(h, A, B, C, D);
 }
 
