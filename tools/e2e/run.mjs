@@ -79,6 +79,17 @@ async function testCards() {
   ok(t.includes('實體牌'), '玩家手機提示這局用實體牌');
   ok(!(await p.page.$('.c3d')), '玩家手機沒有牌卡');
   ok(await pacts(p.page) === 0 && !(await hasPanel(p.page)), '玩家手機沒有任何選項');
+  await nact(p.page, 'noteOpen'); await p.page.fill('[data-nt="text"]', '3號跳預言家\n我覺得是假的');
+  await p.page.selectOption('[data-nt="g"][data-p="3"]', '狼人');
+  await p.page.focus('[data-nt="text"]'); await act(h.page, 'next'); await sleep(600);
+  ok(await p.page.evaluate(() => document.activeElement.tagName === 'TEXTAREA' && document.activeElement.value.includes('3號跳預言家')), '打筆記時裁判推進流程，輸入框不會被重畫打斷');
+  ok(JSON.stringify(await state(h.page)).indexOf('跳預言家') < 0 && JSON.stringify(await net(h.page)).indexOf('跳預言家') < 0, '筆記不會送到裁判那邊');
+  await p.page.reload(); await p.page.waitForSelector('[data-n="noteOpen"]', { timeout: 20000 });
+  ok((await text(p.page)).includes('已記 1 人、有文字'), '重新整理後筆記還在，收起時只顯示摘要');
+  await nact(p.page, 'noteOpen');
+  ok(await p.page.evaluate(() => document.querySelector('[data-nt="text"]').value.includes('我覺得是假的') && document.querySelector('[data-nt="g"][data-p="3"]').value === '狼人'), '打開後文字和「3號＝狼人」都還在');
+  await nact(p.page, 'noteClear'); await nact(p.page, 'noteClear');
+  ok(await p.page.evaluate(() => document.querySelector('[data-nt="text"]').value === '' && document.querySelector('[data-nt="g"][data-p="3"]').value === ''), '清空筆記要點兩次，清完是空的');
   await closeAll(h, p);
 }
 
@@ -358,10 +369,13 @@ async function testVote() {
   await act(h.page, 'voteCand', A.seat); await act(h.page, 'voteCand', X);
   ok((await ht()).includes('請放下手。天亮了，請睜眼。上警的玩家是'), '記完舉手的人，才出現「請睜眼」的台詞並念出上警名單');
   await shot(h.page, '1-setup');
+  await nact(C.page, 'noteOpen'); await C.page.fill('[data-nt="text"]', '記一下'); await C.page.focus('[data-nt="text"]');
   await act(h.page, 'voteStart', 'sheriff');
   let V = await vote();
   ok(V.stage === 'open' && V.cand.join() === [A.seat, X].sort((a, b) => a - b).join() && V.voters.length === 10 && V.voters.includes(v1), '開票：兩位候選人，其餘十人（含昨夜死者）可投');
   ok(await until(() => hasPanel(B.page), '投票面板'), '沒上警的玩家手機跳出投票面板');
+  ok(await until(() => hasPanel(C.page), '打字中的面板'), '正在打筆記的玩家，輪到投票時面板照樣跳出來');
+  await shot(C.page, '12-notes');
   ok(await pacts(B.page) === 3, '選項是兩位候選人加棄票');
   ok(await until(async () => (await text(A.page)).includes('你上警了'), '候選人提示') && await pacts(A.page) === 0, '上警的玩家看到提示、沒有投票選項');
   await pact(B.page, A.seat + '號');

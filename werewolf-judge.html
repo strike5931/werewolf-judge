@@ -268,7 +268,9 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .pm:disabled{opacity:.3}
 .c-wolf{color:var(--wolf)} .c-god{color:var(--god)} .c-vil{color:var(--vil)}
 .field{display:flex;flex-direction:column;gap:4px;font-size:.84rem;color:var(--muted)}
-.field select,.field input{background:var(--surface2);border:1px solid var(--line);border-radius:10px;min-height:44px;padding:6px 10px;font-size:1rem;color:var(--fg);width:100%}
+.field select.set{border-color:var(--moon);font-weight:700}
+.field textarea{resize:vertical;line-height:1.5;font-family:inherit}
+.field select,.field input,.field textarea{background:var(--surface2);border:1px solid var(--line);border-radius:10px;min-height:44px;padding:6px 10px;font-size:1rem;color:var(--fg);width:100%}
 .sum{font-variant-numeric:tabular-nums;font-weight:700}
 .sum.bad{color:var(--wolf)}
 
@@ -1144,7 +1146,7 @@ const SRI={};SRI[PEERJS]='sha512-iFU+yF1keEaLDC9HEwPfLMSRaS0unBHE14GEgx6pQKJXjp5
 function lib(src,has){return new Promise(function(ok,no){if(has())return ok();const s=document.createElement('script');s.src=src;s.integrity=SRI[src];s.crossOrigin='anonymous';s.onload=function(){ok()};s.onerror=function(){no()};document.head.appendChild(s)})}
 const roomId=c=>'wwj-room-'+c,tok=()=>Math.random().toString(36).slice(2)+Date.now().toString(36),clean=s=>String(s||'').trim().slice(0,12);
 const joinUrl=()=>location.origin+location.pathname+'?room='+NET.code;
-function soft(){const ae=document.activeElement;if(ae&&(ae.tagName==='INPUT'||ae.tagName==='SELECT')&&ae.closest('#app'))return;render()}
+function soft(){const ae=document.activeElement;if(ae&&(ae.tagName==='INPUT'||ae.tagName==='SELECT'||ae.tagName==='TEXTAREA')&&ae.closest('#app'))return;render()}
 function netKill(){clearTimeout(retryT);clearTimeout(typeof stageT==='undefined'?0:stageT);if(peer){const o=peer;peer=null;try{o.destroy()}catch(e){}}pconn=null;conns={}}
 
 /* 外觀：深色／淺色／跟隨手機。存在這支手機上，不跟著對局走 */
@@ -1305,6 +1307,22 @@ function vAct(v){if(v.pz&&v.pz.length)return'';const A=v.act;if(!A)return v.onli
 function vRes(v){const r=v.vres;return r&&r.l.length?'<section class="card"><h2>'+esc(r.t)+'</h2><ul class="log">'+r.l.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></section>':''}
 function vHist(v){const cur=v.vres?v.vres.l.join('|'):'',a=v.vlog.filter(x=>x.l.join('|')!==cur).reverse();
   return a.length?'<section class="card"><h2>票型紀錄<small>新的在上面</small></h2>'+a.map(x=>'<h3 class="vh">'+esc(x.t)+'</h3><ul class="log">'+x.l.map(y=>'<li>'+esc(y)+'</li>').join('')+'</ul>').join('')+'</section>':''}
+/* 玩家的私人筆記：只存在自己這支手機，不會送給裁判或其他人。換房號就是新的一本 */
+const NTKEY='wwj-notes';let NOTE={code:'',text:'',g:{}},noteOpen=false,noteClr=false;
+const GUESS=()=>['好人','狼人','可疑'].concat([...new Set(Object.keys(ROLES).map(k=>ROLES[k].n))]);
+function noteGet(){if(NOTE.code!==NET.code){NOTE={code:NET.code,text:'',g:{}};try{const d=JSON.parse(localStorage.getItem(NTKEY));if(d&&d.code===NET.code)NOTE={code:d.code,text:String(d.text||'').slice(0,3000),g:d.g&&typeof d.g==='object'?d.g:{}}}catch(e){}}return NOTE}
+function noteSave(){try{localStorage.setItem(NTKEY,JSON.stringify(NOTE))}catch(e){}}
+function vNotes(v){const N=noteGet(),G=GUESS(),n=Object.keys(N.g).filter(k=>G.indexOf(N.g[k])>=0).length;
+  if(!noteOpen)return '<section class="card"><h2>我的筆記<small>'+(n||N.text?'已記 '+(n?n+' 人':'')+(n&&N.text?'、':'')+(N.text?'有文字':''):'只有你看得到')+'</small></h2><div class="row"><button class="btn" data-n="noteOpen">打開筆記</button></div></section>';
+  return '<section class="card"><h2>我的筆記<small>只存在這支手機</small></h2>'
+    +'<label class="field">自由記錄<textarea data-nt="text" rows="6" maxlength="3000" placeholder="發言重點、誰跳什麼身份、你的推理…">'+esc(N.text)+'</textarea></label>'
+    +'<h3 class="vh">誰可能是誰</h3><div class="vps">'+v.seats.map(q=>{const g=G.indexOf(N.g[q.id])>=0?N.g[q.id]:'';
+      return '<label class="field">'+q.id+'號'+(q.name?' '+esc(q.name):'')+(q.id===v.seat?'（你）':'')+'<select data-nt="g" data-p="'+q.id+'"'+(g?' class="set"':'')+'><option value="">未標記</option>'+G.map(x=>'<option'+(x===g?' selected':'')+'>'+x+'</option>').join('')+'</select></label>'}).join('')+'</div>'
+    +'<p class="note">打字會自動存。旁邊有人時記得收起來。</p>'
+    +'<div class="row"><button class="btn" data-n="noteClose">收起筆記</button><button class="btn red" data-n="noteClear">'+(noteClr?'再點一次確認清空':'清空筆記')+'</button></div></section>'}
+document.addEventListener('input',function(ev){const el=ev.target;if(el.getAttribute&&el.getAttribute('data-nt')==='text'){noteGet().text=el.value.slice(0,3000);noteSave()}});
+document.addEventListener('change',function(ev){const el=ev.target;if(!el.getAttribute||el.getAttribute('data-nt')!=='g')return;const N=noteGet(),p=el.getAttribute('data-p');
+  if(el.value&&GUESS().indexOf(el.value)>=0)N.g[p]=el.value;else delete N.g[p];noteSave();render()});
 function pvClean(d){if(!d||typeof d!=='object'||d.t!=='state'||!Array.isArray(d.seats))return null;const n=Math.min(30,d.seats.length);
   const seat=Number.isInteger(d.seat)&&d.seat>=1&&d.seat<=n?d.seat:0,role=typeof d.role==='string'&&(ROLES[d.role]||d.role==='wolfyb2')&&FX[d.role]?d.role:null;
   return{n:n,seat:seat,role:role,lock:!!d.lock,alive:d.alive!==false,name:clean(d.name),ph:String(d.ph||'').slice(0,12),pk:d.pk==='night'||d.pk==='day'||d.pk==='over'?d.pk:'',online:!!d.online,play:d.play==='cards'||d.play==='online'?d.play:'phone',stp:String(d.stp||'').slice(0,8),lucky:ITEM[d.lucky]?d.lucky:'',act:actClean(d.act),vlog:(Array.isArray(d.vlog)?d.vlog:[]).slice(0,12).filter(x=>x&&typeof x==='object'&&Array.isArray(x.l)).map(x=>({t:String(x.t||'').slice(0,26),l:x.l.slice(0,34).map(y=>String(y==null?'':y).slice(0,140))})),vres:d.vres&&typeof d.vres==='object'&&Array.isArray(d.vres.l)?{t:String(d.vres.t||'').slice(0,20),l:d.vres.l.slice(0,34).map(x=>String(x==null?'':x).slice(0,140))}:null,over:String(d.over||'').slice(0,60),
@@ -1360,10 +1378,10 @@ function vPlayer(){const hd=t=>'<header class="bar"><h1>'+(PV&&PV.pk&&ICON[PV.pk
       +'<div class="pwrap'+(faceUp()?' show':'')+'"><div class="stage3d"><div class="c3d" style="transform:rotateX('+tilt.rx.toFixed(2)+'deg) rotateY('+tilt.ry.toFixed(2)+'deg)"><i class="cf av-'+v.role+'">'+layers(v.role)+'<u class="gl"></u><b class="cn">'+RI(v.role).n+'</b></i><i class="cb av-back"></i></div></div>'
       +'<div class="pinfo"><h2 class="c-'+r.t+'">'+r.n+'<small class="ct">'+TEAM[r.t]+'</small></h2><p class="say" style="margin:0">'+FX[v.role]+'</p></div></div>'
       +'<p class="note" style="text-align:center">點一下卡片翻面，左右拖曳可以旋轉。正面 10 秒後會自動蓋回，換階段時也會；翻開前確認旁邊沒人看得到螢幕。</p>'
-      +motionBtn()+'</section>'+vHist(v)}
+      +motionBtn()+'</section>'+vNotes(v)+vHist(v)}
   if(v.seat&&v.pk&&!v.role)return hd('房間 '+NET.code)+st+'<section class="card"><h2>'+v.seat+'號'+(v.name?'・'+esc(v.name):'')+'<small>'+esc(v.ph)+'</small></h2>'
     +(v.alive===false?'<p class="note w">你已出局。</p>':'')+(v.over?'<p class="say">'+esc(v.over)+'</p>':'')
-    +'<p class="note">'+(v.play==='cards'?'這一局用實體牌，身份看你手上的牌。手機只顯示目前階段。':'裁判還沒記錄你的身份，稍等一下。')+'</p></section>';
+    +'<p class="note">'+(v.play==='cards'?'這一局用實體牌，身份看你手上的牌。手機只顯示目前階段。':'裁判還沒記錄你的身份，稍等一下。')+'</p></section>'+vNotes(v);
   const lock=v.lock;
   return hd('房間 '+NET.code)+st+'<section class="card"><h2>你的名字</h2><label class="field"><input id="p-nm" data-nc="pname" maxlength="12" autocomplete="off" placeholder="讓裁判認得你" value="'+esc(v.name||NET.name||'')+'"></label></section>'
     +'<section class="card"><h2>選座位<small>'+(v.seat?'你是 '+v.seat+'號':'還沒選')+'</small></h2>'
@@ -1391,12 +1409,14 @@ document.addEventListener('click',function(ev){const el=ev.target.closest&&ev.ta
     NET.code=c;NET.name=nmv;netSave();PV=null;playerConnect()}
   else if(a==='leave')playerLeave();
   else if(a==='pseat')psend({t:'seat',seat:+p});
+  else if(a==='noteOpen'||a==='noteClose'){noteOpen=a==='noteOpen';noteClr=false}
+  else if(a==='noteClear'){if(noteClr){NOTE={code:NET.code,text:'',g:{}};noteSave();noteClr=false;toast('筆記已清空')}else noteClr=true}
   render()});
 document.addEventListener('change',function(ev){const el=ev.target;if(!el.getAttribute||el.getAttribute('data-nc')!=='pname')return;
   NET.name=clean(el.value);netSave();psend({t:'name',name:NET.name});render()});
 /* 玩家手機上的階段提示：畫面正中間跳一張牌子，兩秒多後自己離開 */
 let annT=0;
-function announce(ic,title,sub){const el=document.getElementById('ann');if(!el)return;clearTimeout(annT);el.classList.remove('on');
+function announce(ic,title,sub){const el=document.getElementById('ann');if(!el)return;const ae=document.activeElement;if(ae&&ae.getAttribute&&ae.getAttribute('data-nt'))ae.blur();clearTimeout(annT);el.classList.remove('on');
   el.innerHTML='<div class="annb">'+(ICON[ic]||'')+'<b>'+esc(title)+'</b>'+(sub?'<small>'+esc(sub)+'</small>':'')+'</div>';
   void el.offsetWidth;el.classList.add('on');annT=setTimeout(function(){el.classList.remove('on');el.innerHTML=''},2600)}
 function netBoot(){netLoad();const rm=(new URLSearchParams(location.search).get('room')||'').replace(/\D/g,'').slice(0,4);
