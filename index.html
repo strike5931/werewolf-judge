@@ -90,6 +90,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .actc{border-color:var(--moon)}
 .actc h3{margin:6px 0 0;font-size:.9rem;color:var(--muted);font-weight:600}
 .votec{gap:10px}
+.chip.me{outline:2px solid var(--moon);outline-offset:1px}
 .vh{margin:4px 0 -6px;font-size:.9rem;color:var(--moon);font-weight:700}
 .vrow{display:grid;grid-template-columns:minmax(4.2rem,auto) 1fr auto;align-items:center;gap:2px 8px}
 .vrow b{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:8.5rem}
@@ -1192,10 +1193,11 @@ function hostOpen(fresh){if(NET.mode!=='host'||fresh){NET={mode:'host',code:Stri
   }).catch(function(){netSt='連線元件載入失敗，請確認網路後再試';soft()});}
 function hostClose(){const ow=owners();Object.keys(ow).forEach(s=>{if(P(+s))P(+s).name=''});NET={mode:null};netSave();netKill();netSt='';save()}
 function owners(){const o={};Object.keys(NET.seats||{}).forEach(tk=>{const s=NET.seats[tk];if(s>=1&&s<=S.players.length)o[s]=tk});return o}
+const unesc=t=>String(t).replace(/&(amp|lt|gt|quot);/g,(m,k)=>({amp:'&',lt:'<',gt:'>',quot:'"'}[k]));
 function stateFor(tk){const ow=owners(),seat=ow[NET.seats[tk]]===tk?NET.seats[tk]:0,p=seat&&P(seat);
   return{t:'state',code:NET.code,n:S.players.length,lock:NET.dealt||S.phase!=='assign',seat:seat,name:NET.names[tk]||'',
     seats:S.players.map(q=>({id:q.id,name:q.name,alive:q.alive,taken:!!ow[q.id],free:!ow[q.id]&&(NET.gone||{})[q.id]!=null&&inGame()})),pz:pausedSeats().map(x=>x.id),
-    play:playMode(),role:playMode()!=='cards'&&(NET.dealt||S.phase==='night'||S.phase==='day'||S.phase==='over')&&p&&p.role?AK(p):null,alive:p?p.alive||(electing()&&!!p.death&&p.death.ph==='night'):true,vres:voteOn()&&S.vres?S.vres:null,vlog:voteOn()?(S.vlog||[]).slice(-12):[],pk:S.phase==='night'||S.phase==='day'||S.phase==='over'?S.phase:'',online:!!(playMode()==='online'),
+    play:playMode(),role:playMode()!=='cards'&&(NET.dealt||S.phase==='night'||S.phase==='day'||S.phase==='over')&&p&&p.role?AK(p):null,alive:p?p.alive||(electing()&&!!p.death&&p.death.ph==='night'):true,end:S.phase==='over'?{ps:S.players.map(q=>({role:q.role?AK(q):'',alive:q.alive})),log:S.log.slice(-300).map(e=>({r:e.r,ph:e.ph,t:unesc(e.t)}))}:null,vres:voteOn()&&S.vres?S.vres:null,vlog:voteOn()?(S.vlog||[]).slice(-12):[],pk:S.phase==='night'||S.phase==='day'||S.phase==='over'?S.phase:'',online:!!(playMode()==='online'),
     stp:(playMode()==='online')&&S.phase==='night'?STEPN[nightSteps()[Math.min(S.step,nightSteps().length-1)]]||'':'',act:actFor(p),
     lucky:(playMode()==='online')&&p&&S.lucky&&S.lucky.pid===p.id&&!S.lucky.used?S.lucky.item:'',
     ph:S.phase==='night'?'第 '+S.round+' 夜':S.phase==='day'?'第 '+S.round+' 天':S.phase==='over'?'遊戲結束':'',over:S.phase==='over'?S.result:''}}
@@ -1318,6 +1320,13 @@ function vAct(v){if(v.pz&&v.pz.length)return'';const A=v.act;if(!A)return v.onli
       return '<button class="btn sm'+(o.sel?' sel':'')+(pd?' pend':'')+'" data-n="pact" data-p="'+esc(k)+'"'+(o.dis?' disabled':'')+'>'+(pd?'再點一次確認：':'')+esc(o.label)+'</button>'}).join('')+'</div>').join('')
     +(A.st==='vote'?(A.groups.length?'<p class="note">選好會亮起來，裁判結算前都可以改；再點一次同一個＝收回。別人看不到你投給誰，結算後才公開。</p>':''):A.groups.length?'<p class="note">選好後等裁判進入下一步；在那之前可以改'+(A.groups.some(g=>g.a==='check'||g.a==='lcheck')?'（查驗除外，確認後不能改）':'')+'。</p>':'')+'</section>'}
 function vRes(v){const r=v.vres;return r&&r.l.length?'<section class="card"><h2>'+esc(r.t)+'</h2><ul class="log">'+r.l.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></section>':''}
+/* 遊戲結束：所有人的身份和整局流程公開到每支手機 */
+function vEnd(v){const E=v.end;if(!E||v.pk!=='over')return'';const win=v.over.indexOf('好人')===0?ART._good:v.over.indexOf('狼人')===0?ART._evil:null;let k='',lg='';
+  E.log.forEach(e=>{const kk='第 '+e.r+' '+(e.ph==='night'?'夜':'天');if(kk!==k){k=kk;lg+='<li class="hd">'+k+'</li>'}lg+='<li>'+esc(e.t)+'</li>'});
+  return '<section class="card win">'+(win?'<img src="'+win+'" alt="">':'')+'<p>'+esc(v.over)+'</p></section>'
+    +'<section class="card"><h2>身份公布<small>劃掉的是已出局</small></h2><div class="board">'+E.ps.map((q,i)=>{const r=q.role?RI(q.role):null,s=v.seats[i]||{};
+      return '<div class="chip '+(q.alive?'':'dead ')+(r?'tm-'+r.t:'')+(i+1===v.seat?' me':'')+'"><span class="hd">'+(r&&ART[q.role]?'<i class="av av-'+q.role+'"></i>':'')+'<b>'+(i+1)+'</b></span><span class="nm">'+esc(s.name)+'</span><span class="rl">'+(r?r.n:'未知')+'</span></div>'}).join('')+'</div></section>'
+    +'<section class="card"><h2>流程紀錄</h2>'+(lg?'<ul class="log">'+lg+'</ul>':'<p class="note">沒有紀錄。</p>')+'</section>'}
 function vHist(v){const cur=v.vres?v.vres.l.join('|'):'',a=v.vlog.filter(x=>x.l.join('|')!==cur).reverse();
   return a.length?'<section class="card"><h2>票型紀錄<small>新的在上面</small></h2>'+a.map(x=>'<h3 class="vh">'+esc(x.t)+'</h3><ul class="log">'+x.l.map(y=>'<li>'+esc(y)+'</li>').join('')+'</ul>').join('')+'</section>':''}
 /* 玩家的私人筆記：只存在自己這支手機，不會送給裁判或其他人。換房號就是新的一本 */
@@ -1338,7 +1347,7 @@ document.addEventListener('change',function(ev){const el=ev.target;if(!el.getAtt
   if(el.value&&GUESS().indexOf(el.value)>=0)N.g[p]=el.value;else delete N.g[p];noteSave();render()});
 function pvClean(d){if(!d||typeof d!=='object'||d.t!=='state'||!Array.isArray(d.seats))return null;const n=Math.min(30,d.seats.length);
   const seat=Number.isInteger(d.seat)&&d.seat>=1&&d.seat<=n?d.seat:0,role=typeof d.role==='string'&&(ROLES[d.role]||d.role==='wolfyb2')&&FX[d.role]?d.role:null;
-  return{n:n,seat:seat,role:role,lock:!!d.lock,alive:d.alive!==false,name:clean(d.name),ph:String(d.ph||'').slice(0,12),pk:d.pk==='night'||d.pk==='day'||d.pk==='over'?d.pk:'',online:!!d.online,play:d.play==='cards'||d.play==='online'?d.play:'phone',stp:String(d.stp||'').slice(0,8),lucky:ITEM[d.lucky]?d.lucky:'',act:actClean(d.act),vlog:(Array.isArray(d.vlog)?d.vlog:[]).slice(0,12).filter(x=>x&&typeof x==='object'&&Array.isArray(x.l)).map(x=>({t:String(x.t||'').slice(0,26),l:x.l.slice(0,34).map(y=>String(y==null?'':y).slice(0,140))})),vres:d.vres&&typeof d.vres==='object'&&Array.isArray(d.vres.l)?{t:String(d.vres.t||'').slice(0,20),l:d.vres.l.slice(0,34).map(x=>String(x==null?'':x).slice(0,140))}:null,over:String(d.over||'').slice(0,60),
+  return{n:n,seat:seat,role:role,lock:!!d.lock,alive:d.alive!==false,name:clean(d.name),ph:String(d.ph||'').slice(0,12),pk:d.pk==='night'||d.pk==='day'||d.pk==='over'?d.pk:'',online:!!d.online,play:d.play==='cards'||d.play==='online'?d.play:'phone',stp:String(d.stp||'').slice(0,8),lucky:ITEM[d.lucky]?d.lucky:'',act:actClean(d.act),end:d.end&&typeof d.end==='object'&&Array.isArray(d.end.ps)&&Array.isArray(d.end.log)?{ps:d.end.ps.slice(0,n).map(q=>({role:q&&typeof q.role==='string'&&(ROLES[q.role]||q.role==='wolfyb2')?q.role:'',alive:!!(q&&q.alive)})),log:d.end.log.slice(0,300).map(e=>({r:(e&&e.r)|0,ph:e&&e.ph==='night'?'night':'day',t:String(e&&e.t||'').slice(0,400)}))}:null,vlog:(Array.isArray(d.vlog)?d.vlog:[]).slice(0,12).filter(x=>x&&typeof x==='object'&&Array.isArray(x.l)).map(x=>({t:String(x.t||'').slice(0,26),l:x.l.slice(0,34).map(y=>String(y==null?'':y).slice(0,140))})),vres:d.vres&&typeof d.vres==='object'&&Array.isArray(d.vres.l)?{t:String(d.vres.t||'').slice(0,20),l:d.vres.l.slice(0,34).map(x=>String(x==null?'':x).slice(0,140))}:null,over:String(d.over||'').slice(0,60),
     pz:(Array.isArray(d.pz)?d.pz:[]).slice(0,30).map(x=>x|0).filter(x=>x>=1&&x<=n),
     seats:d.seats.slice(0,n).map((q,i)=>({id:i+1,name:clean(q&&q.name),taken:!!(q&&q.taken),free:!!(q&&q.free)}))}}
 /* 連線分三段，每段各自計時：卡在哪一段、可能是什麼原因，直接寫在畫面上，截圖就能判斷 */
@@ -1386,14 +1395,14 @@ function vPlayer(){const hd=t=>'<header class="bar"><h1>'+(PV&&PV.pk&&ICON[PV.pk
   const v=PV,st=(netSt!=='ok'?'<p class="note w">'+esc(netSt)+'</p>':'')+(v&&v.pz&&v.pz.length?'<section class="card pzc"><h2>遊戲暫停</h2><p class="note">等 '+v.pz.map(x=>x+'號').join('、')+' 重新連線，或由裁判決定繼續。這段時間不能操作。</p></section>':'');
   if(!v)return hd('房間 '+NET.code)+'<section class="card"><h2>正在加入房間</h2>'+(st||'<p class="note">連線中…</p>')+'</section>';
   if(v.role&&v.seat){const r=RI(v.role),me=v.seats[v.seat-1]||{};
-    return hd('房間 '+NET.code)+st+vAct(v)+vRes(v)+'<section class="card"><h2>'+v.seat+'號'+(v.name?'・'+esc(v.name):'')+'<small>'+esc(v.ph||'等待開始')+'</small></h2>'
-      +(v.alive===false?'<p class="note w">你已出局。</p>':'')+(v.lucky?'<p class="note on">你是幸運兒：持有交易來的'+ITEM[v.lucky]+'。</p>':'')+(v.over?'<p class="say">'+esc(v.over)+'</p>':'')
+    return hd('房間 '+NET.code)+st+vAct(v)+vRes(v)+vEnd(v)+'<section class="card"><h2>'+v.seat+'號'+(v.name?'・'+esc(v.name):'')+'<small>'+esc(v.ph||'等待開始')+'</small></h2>'
+      +(v.alive===false&&!v.end?'<p class="note w">你已出局。</p>':'')+(v.lucky?'<p class="note on">你是幸運兒：持有交易來的'+ITEM[v.lucky]+'。</p>':'')+(v.over&&!v.end?'<p class="say">'+esc(v.over)+'</p>':'')
       +'<div class="pwrap'+(faceUp()?' show':'')+'"><div class="stage3d"><div class="c3d" style="transform:rotateX('+tilt.rx.toFixed(2)+'deg) rotateY('+tilt.ry.toFixed(2)+'deg)"><i class="cf av-'+v.role+'">'+layers(v.role)+'<u class="gl"></u><b class="cn">'+RI(v.role).n+'</b></i><i class="cb av-back"></i></div></div>'
       +'<div class="pinfo"><h2 class="c-'+r.t+'">'+r.n+'<small class="ct">'+TEAM[r.t]+'</small></h2><p class="say" style="margin:0">'+FX[v.role]+'</p></div></div>'
       +'<p class="note" style="text-align:center">點一下卡片翻面，左右拖曳可以旋轉。正面 10 秒後會自動蓋回，換階段時也會；翻開前確認旁邊沒人看得到螢幕。</p>'
       +motionBtn()+'</section>'+vNotes(v)+vHist(v)}
-  if(v.seat&&v.pk&&!v.role)return hd('房間 '+NET.code)+st+'<section class="card"><h2>'+v.seat+'號'+(v.name?'・'+esc(v.name):'')+'<small>'+esc(v.ph)+'</small></h2>'
-    +(v.alive===false?'<p class="note w">你已出局。</p>':'')+(v.over?'<p class="say">'+esc(v.over)+'</p>':'')
+  if(v.seat&&v.pk&&!v.role)return hd('房間 '+NET.code)+st+vEnd(v)+'<section class="card"><h2>'+v.seat+'號'+(v.name?'・'+esc(v.name):'')+'<small>'+esc(v.ph)+'</small></h2>'
+    +(v.alive===false?'<p class="note w">你已出局。</p>':'')+(v.over&&!v.end?'<p class="say">'+esc(v.over)+'</p>':'')
     +'<p class="note">'+(v.play==='cards'?'這一局用實體牌，身份看你手上的牌。手機只顯示目前階段。':'裁判還沒記錄你的身份，稍等一下。')+'</p></section>'+vNotes(v);
   const lock=v.lock;
   return hd('房間 '+NET.code)+st+'<section class="card"><h2>你的名字</h2><label class="field"><input id="p-nm" data-nc="pname" maxlength="12" autocomplete="off" placeholder="讓裁判認得你" value="'+esc(v.name||NET.name||'')+'"></label></section>'

@@ -437,6 +437,13 @@ async function testVote() {
   const ct = await text(C.page);
   ok(ct.includes('票型紀錄') && ct.includes('第 1 天 警長投票') && ct.includes('第 1 天 放逐投票（平票重投）') && ct.includes(B.seat + '號：1.5 票') && ct.includes(C.seat + '號：1 票（' + B.seat + '號）'), '進入夜晚後，玩家手機仍看得到當天每一輪的票型（含平票前那一輪）', ct.slice(-400));
   ok((await text(D.page)).includes('票型紀錄'), '出局的玩家也看得到票型紀錄');
+  await act(h.page, 'menu'); await act(h.page, 'end');
+  ok(await until(async () => { const t = await text(D.page); return t.includes('身份公布') && t.includes('流程紀錄'); }, '結束畫面'), '裁判結束遊戲後，玩家手機出現身份公布和流程紀錄');
+  const et = await text(D.page), chips = await D.page.evaluate(() => [...document.querySelectorAll('.board .chip')].map(e => e.innerText.replace(/\s+/g, ' ')));
+  ok(chips.length === 12 && S0.players.every((p, i) => chips[i].includes(String(p.id))) && chips[ids('seer')[0] - 1].includes('預言家') && chips[ids('wolfbro')[0] - 1].includes('狼兄'), '十二個座位的身份全部翻開，和裁判台一致', chips.join(' / '));
+  ok(et.includes('第 1 夜') && et.includes('狼人襲擊 ' + v1 + '號') && et.includes('當選警長') && et.includes('放逐投票'), '流程紀錄含夜晚行動、警長與投票', et.slice(0, 300));
+  ok(await D.page.evaluate(() => document.querySelectorAll('.board .chip.dead').length) === 2, '出局的兩人在身份公布上劃掉');
+  await shot(D.page, '13-end-player');
   await closeAll(h, A, B, C, D);
 }
 
